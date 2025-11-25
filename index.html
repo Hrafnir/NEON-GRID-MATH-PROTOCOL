@@ -1,101 +1,71 @@
-<!-- Version: #04 -->
+<!-- Version: #07 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: MATH CORE</title>
+    <title>NEON DEFENSE: INTEGRATED</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <!-- Visuell effekt: Scanlines over hele skjermen -->
     <div id="scanlines"></div>
     
-    <div id="app">
-        <!-- HEADER / HUD: Vises alltid øverst -->
-        <header>
-            <div class="logo">NEON DEFENSE</div>
-            <div class="currency-display">
-                <span id="global-bits">0</span> BITS
+    <div id="game-container">
+        <!-- SPILL-LERRET -->
+        <canvas id="game-canvas" width="1000" height="600"></canvas>
+
+        <!-- UI HUD (Heads Up Display) -->
+        <div id="ui-layer">
+            <div class="top-bar">
+                <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
+                <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
+                <div class="stat-box">WAVE: <span id="ui-wave">0</span></div>
             </div>
-        </header>
 
-        <!-- MENU SCREEN: Hovedmenyen -->
-        <div id="screen-menu" class="screen active">
-            <h2>SYSTEM STATUS: ONLINE</h2>
-            
-            <div class="menu-grid">
-                <!-- Venstre panel: Matetrening -->
-                <div class="panel math-panel">
-                    <h3>// STEP 1: DATA MINING (MATH)</h3>
-                    <p>Løs oppgaver for å tjene BITS og låse opp Blueprints.</p>
-                    <div class="level-select">
-                        <button class="btn" onclick="game.startMath(1)">LVL 1 (2-5-10)</button>
-                        <button class="btn" onclick="game.startMath(2)">LVL 2 (3-4-6)</button>
-                        <button class="btn" onclick="game.startMath(3)">LVL 3 (7-8-9)</button>
-                        <button class="btn glitch-text" onclick="game.startMath(4)">LVL 4 (CHAOS)</button>
-                    </div>
-                </div>
+            <!-- Miner Control (Venstre side) -->
+            <div id="miner-panel" onclick="game.openMinerUpgrade()">
+                <div class="panel-title">CRYPTO MINER</div>
+                <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
+                <div class="panel-stat">Rate: <span id="miner-rate">5</span>/sek</div>
+                <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE</div>
+            </div>
 
-                <!-- Høyre panel: Tower Defense -->
-                <div class="panel td-panel">
-                    <h3>// STEP 2: CORE DEFENSE</h3>
-                    <p>Bruk BITS til å forsvare kjernen mot virus.</p>
-                    <button class="btn btn-large" onclick="game.startTD()">START DEFENSE</button>
-                    
-                    <!-- Liste over hvilke tårn som er låst opp -->
-                    <div id="unlock-status">
-                        <!-- JS fyller inn låste/åpne tårn her -->
-                    </div>
-                </div>
+            <!-- Wave Control (Høyre side) -->
+            <div id="wave-control" onclick="game.nextWave()">
+                <div class="panel-title">NEXT WAVE</div>
+                <div id="wave-timer">READY</div>
+            </div>
+
+            <!-- Tower Toolbar (Bunn) -->
+            <div id="toolbar">
+                <!-- Tårn-knapper genereres her av JS -->
             </div>
         </div>
 
-        <!-- MATH SCREEN: Selve matte-spillet -->
-        <div id="screen-math" class="screen">
-            <div class="math-hud">
-                <div>TID: <span id="math-timer">60</span></div>
-                <!-- NYTT: Visning av Combo Multiplier -->
-                <div style="color: var(--neon-pink)">COMBO: x<span id="math-combo">1</span></div>
-                <div>SCORE: <span id="math-score">0</span></div>
-            </div>
-            
-            <div class="math-container">
-                <div id="math-question">READY?</div>
-                <!-- Input felt for svar -->
-                <input type="number" id="math-input" autocomplete="off" placeholder="?">
-                <div id="math-feedback"></div>
-            </div>
-            
-            <button class="btn btn-small" onclick="game.abortMath()">AVBRYT / TILBAKE</button>
-        </div>
-
-        <!-- TOWER DEFENSE SCREEN: Selve spillet -->
-        <div id="screen-td" class="screen">
-            <div class="td-hud">
-                <div>WAVE: <span id="td-wave">1</span></div>
-                <div>CORE HP: <span id="td-hp">100</span>%</div>
-                <button class="btn btn-small" onclick="game.returnToMenu()">RETREAT</button>
-            </div>
-            
-            <div class="game-wrapper">
-                <!-- Lerretet spillet tegnes på -->
-                <canvas id="td-canvas" width="800" height="450"></canvas>
+        <!-- MATH TERMINAL (Overlay som vises når man må regne) -->
+        <div id="math-terminal" class="hidden">
+            <div class="terminal-window">
+                <div class="terminal-header">
+                    <span class="blink">>></span> SYSTEM OVERRIDE <span class="blink"><<</span>
+                </div>
                 
-                <!-- Meny for å velge tårn å bygge -->
-                <div id="tower-selector">
-                    <!-- Tårn knapper genereres her av JS -->
+                <div id="math-context">UPGRADING BLASTER TO LVL 2</div>
+                <div id="math-progress">TASK 1 / 1</div>
+                
+                <div class="math-display">
+                    <div id="math-question">2 x 4</div>
+                    <input type="number" id="math-input" autocomplete="off" placeholder="?">
                 </div>
+                
+                <div id="math-feedback"></div>
+                <button class="btn-cancel" onclick="game.closeMath()">ABORT</button>
             </div>
-            
-            <div id="wave-info">Trykk 'N' eller klikk her for neste bølge</div>
         </div>
     </div>
 
-    <!-- Laster inn spill-logikken -->
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #04 -->
+<!-- Version: #07 -->
