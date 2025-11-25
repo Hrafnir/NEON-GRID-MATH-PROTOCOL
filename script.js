@@ -1,10 +1,10 @@
-/* Version: #13 */
+/* Version: #14 */
 /**
  * NEON DEFENSE: REALTIME - SCRIPT
- * Endringer: Tregere fiender, lengre bølger, fungerende miner.
+ * Justert for Widescreen (1100x750) og bedre UI-plassering.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V13 ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V14 (WIDESCREEN) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -24,7 +24,7 @@ const CONFIG = {
 
 const TOWERS = {
     blaster: { name: "Blaster", cost: 50, range: 120, damage: 10, rate: 30, color: "#00f3ff", type: "single" },
-    trap:    { name: "Mine",    cost: 30, range: 40,  damage: 250, rate: 0,   color: "#ffee00", type: "trap" }, // Økt range/dmg
+    trap:    { name: "Mine",    cost: 30, range: 40,  damage: 250, rate: 0,   color: "#ffee00", type: "trap" },
     sniper:  { name: "Railgun", cost: 150, range: 400, damage: 120, rate: 80, color: "#ff0055", type: "single" },
     cryo:    { name: "Cryo",    cost: 120, range: 100, damage: 4,   rate: 8,  color: "#0099ff", type: "slow" },
     cannon:  { name: "Pulse",   cost: 250, range: 140, damage: 45,  rate: 50, color: "#0aff00", type: "splash" },
@@ -99,10 +99,13 @@ function playSound(type) {
 // --- 4. CORE ENGINE ---
 const game = {
     init: () => {
+        // NY STIL: Holder seg unna bunnen (Toolbar) og høyre kant (Miner)
+        // Canvas er 1100x750. Toolbar er bunn ~120px. Miner er Høyre ~200px.
         state.mapPath = [
-            {x:0, y:100}, {x:850, y:100}, {x:850, y:250}, 
-            {x:150, y:250}, {x:150, y:400}, {x:850, y:400}, 
-            {x:850, y:550}, {x:100, y:550}
+            {x:-20, y:140}, {x:850, y:140}, 
+            {x:850, y:280}, {x:150, y:280}, 
+            {x:150, y:420}, {x:850, y:420}, 
+            {x:850, y:560}, {x:-20, y:560} // Slutter på venstre side, høyt nok over toolbar
         ];
         
         game.updateUI();
@@ -133,14 +136,8 @@ const game = {
         state.gameState = 'PLAYING';
         document.querySelectorAll('.overlay-screen').forEach(el => el.classList.add('hidden'));
         
-        // --- BALANSERING AV BØLGER ---
-        // Antall: Starter på 12, øker med 4 per bølge (Lengre bølger)
         let count = 12 + (state.wave * 4);
-        
-        // Helse: Øker gradvis
         let hp = 60 + (state.wave * 35);
-        
-        // Fart: Starter på 1.0 (sakte!), øker sakte
         let speed = 0.8 + (state.wave * 0.15);
         
         state.enemiesToSpawn = count;
@@ -160,7 +157,7 @@ const game = {
             } else {
                 clearInterval(state.spawnTimer);
             }
-        }, 1200); // 1.2 sek mellom fiender (litt mer mellomrom)
+        }, 1200); 
         
         game.updateUI();
     },
@@ -304,8 +301,11 @@ const game = {
         if (state.mathTask.active) return;
         
         const rect = document.getElementById('game-canvas').getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const scaleX = document.getElementById('game-canvas').width / rect.width;
+        const scaleY = document.getElementById('game-canvas').height / rect.height;
+        
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
 
         for (let t of state.towers) {
             if (Math.hypot(x - t.x, y - t.y) < 20) {
@@ -383,11 +383,10 @@ const game = {
         
         game.checkWaveEnd();
 
-        // Towers (Reverse loop for safe removal of mines)
+        // Towers
         for (let i = state.towers.length - 1; i >= 0; i--) {
             let t = state.towers[i];
             
-            // --- TRAP LOGIC (MINER) ---
             if (t.type === 'trap') {
                 let hit = false;
                 for (let e of state.enemies) {
@@ -395,14 +394,13 @@ const game = {
                         game.damageEnemy(e, t.damage);
                         createParticles(t.x, t.y, "#ffaa00", 30);
                         playSound('explode');
-                        state.towers.splice(i, 1); // Fjern minen
+                        state.towers.splice(i, 1); 
                         hit = true;
                         break;
                     }
                 }
-                if (hit) continue; // Hopp til neste tårn hvis denne smalt
+                if (hit) continue; 
             } 
-            // --- VANLIGE TÅRN ---
             else {
                 if (t.cooldown > 0) t.cooldown--;
                 
@@ -476,7 +474,8 @@ const game = {
 
     draw: () => {
         const ctx = document.getElementById('game-canvas').getContext('2d');
-        ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1000, 600);
+        // OPPDATERT: Bruker 1100x750 nå
+        ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1100, 750);
         
         // Path
         ctx.strokeStyle = "#222"; ctx.lineWidth = 40; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -490,12 +489,10 @@ const game = {
             ctx.translate(t.x, t.y);
             
             if (t.type === 'trap') {
-                // Tegn Mine
                 ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
                 ctx.strokeStyle = t.color; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.stroke();
             } else {
-                // Tegn Vanlig Tårn
                 ctx.fillStyle = "#333"; ctx.fillRect(-15, -15, 30, 30);
                 ctx.fillStyle = "#fff"; ctx.font = "10px Arial"; ctx.fillText("v"+t.level, -6, 4);
                 ctx.rotate(t.angle);
@@ -549,4 +546,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #13 */
+/* Version: #14 */
