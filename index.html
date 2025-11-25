@@ -1,10 +1,10 @@
-<!-- Version: #07 -->
+<!-- Version: #10 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: INTEGRATED</title>
+    <title>NEON DEFENSE: REALTIME</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
@@ -16,56 +16,62 @@
         <!-- SPILL-LERRET -->
         <canvas id="game-canvas" width="1000" height="600"></canvas>
 
-        <!-- UI HUD (Heads Up Display) -->
+        <!-- UI HUD -->
         <div id="ui-layer">
             <div class="top-bar">
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
-                <div class="stat-box">WAVE: <span id="ui-wave">0</span></div>
+                <div class="stat-box">WAVE: <span id="ui-wave">1</span></div>
+                <div class="stat-box">SCORE: <span id="ui-score" style="color:#0aff00">0</span></div>
+                <div class="stat-box small">HIGH: <span id="ui-high">0</span></div>
             </div>
 
-            <!-- Miner Control (Venstre side) -->
+            <!-- Miner Control -->
             <div id="miner-panel" onclick="game.openMinerUpgrade()">
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
-                <div class="panel-stat">Rate: <span id="miner-rate">5</span>/sek</div>
+                <div class="panel-stat">Rate: <span id="miner-rate">5</span>/s</div>
                 <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE</div>
             </div>
 
-            <!-- Wave Control (Høyre side) -->
-            <div id="wave-control" onclick="game.nextWave()">
-                <div class="panel-title">NEXT WAVE</div>
-                <div id="wave-timer">READY</div>
-            </div>
-
-            <!-- Tower Toolbar (Bunn) -->
+            <!-- Toolbar (Tårnvalg) -->
             <div id="toolbar">
-                <!-- Tårn-knapper genereres her av JS -->
+                <!-- Genereres av JS -->
             </div>
         </div>
 
-        <!-- MATH TERMINAL (Overlay som vises når man må regne) -->
+        <!-- MATH TERMINAL (Overlay som IKKE pauser spillet lenger) -->
         <div id="math-terminal" class="hidden">
             <div class="terminal-window">
                 <div class="terminal-header">
                     <span class="blink">>></span> SYSTEM OVERRIDE <span class="blink"><<</span>
                 </div>
-                
-                <div id="math-context">UPGRADING BLASTER TO LVL 2</div>
+                <div id="math-context">UPGRADING...</div>
                 <div id="math-progress">TASK 1 / 1</div>
-                
                 <div class="math-display">
                     <div id="math-question">2 x 4</div>
                     <input type="number" id="math-input" autocomplete="off" placeholder="?">
                 </div>
-                
-                <div id="math-feedback"></div>
                 <button class="btn-cancel" onclick="game.closeMath()">ABORT</button>
             </div>
+        </div>
+
+        <!-- WAVE COMPLETE OVERLAY (Pauser spillet mellom bølger) -->
+        <div id="wave-overlay" class="overlay-screen">
+            <h1>WAVE COMPLETE</h1>
+            <p>Score Bonus: <span id="wave-bonus" style="color:var(--neon-green)">0</span></p>
+            <button class="btn-large" onclick="game.startNextWave()">START NEXT WAVE</button>
+        </div>
+        
+        <!-- GAME OVER OVERLAY -->
+        <div id="gameover-overlay" class="overlay-screen hidden">
+            <h1 style="color:var(--neon-pink)">SYSTEM FAILURE</h1>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button class="btn-large" onclick="location.reload()">REBOOT SYSTEM</button>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #07 -->
+<!-- Version: #10 -->
