@@ -1,10 +1,10 @@
-<!-- Version: #10 -->
+<!-- Version: #14 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: REALTIME</title>
+    <title>NEON DEFENSE: WIDESCREEN</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
@@ -13,8 +13,8 @@
     <div id="scanlines"></div>
     
     <div id="game-container">
-        <!-- SPILL-LERRET -->
-        <canvas id="game-canvas" width="1000" height="600"></canvas>
+        <!-- SPILL-LERRET (Økt størrelse) -->
+        <canvas id="game-canvas" width="1100" height="750"></canvas>
 
         <!-- UI HUD -->
         <div id="ui-layer">
@@ -26,7 +26,7 @@
                 <div class="stat-box small">HIGH: <span id="ui-high">0</span></div>
             </div>
 
-            <!-- Miner Control -->
+            <!-- Miner Control (Flyttet i CSS) -->
             <div id="miner-panel" onclick="game.openMinerUpgrade()">
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
@@ -40,7 +40,7 @@
             </div>
         </div>
 
-        <!-- MATH TERMINAL (Overlay som IKKE pauser spillet lenger) -->
+        <!-- MATH TERMINAL -->
         <div id="math-terminal" class="hidden">
             <div class="terminal-window">
                 <div class="terminal-header">
@@ -56,7 +56,7 @@
             </div>
         </div>
 
-        <!-- WAVE COMPLETE OVERLAY (Pauser spillet mellom bølger) -->
+        <!-- WAVE COMPLETE OVERLAY -->
         <div id="wave-overlay" class="overlay-screen">
             <h1>WAVE COMPLETE</h1>
             <p>Score Bonus: <span id="wave-bonus" style="color:var(--neon-green)">0</span></p>
@@ -74,4 +74,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #10 -->
+<!-- Version: #14 -->
