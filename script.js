@@ -1,4 +1,4 @@
-* Version: #06 */
+/* Version: #06 */
 /**
  * NEON DEFENSE: MATH CORE - SCRIPT
  * Versjon 6: Fast budsjett og Chaos-bonus.
