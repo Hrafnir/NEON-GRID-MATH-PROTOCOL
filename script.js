@@ -1,10 +1,10 @@
-/* Version: #09 */
+/* Version: #12 */
 /**
- * NEON DEFENSE: INTEGRATED - SCRIPT
- * Inneholder: Game Loop, Math Terminal, Miner Logic, Turret System.
+ * NEON DEFENSE: REALTIME - SCRIPT
+ * Inneholder: Game Loop, Math Terminal, Wave Management, Scoring.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE INTEGRATED ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE REALTIME ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -12,35 +12,37 @@ const CONFIG = {
     STARTING_LIVES: 20,
     MINER_BASE_RATE: 2, // Bits per sekund på level 1
     
-    // Hvor mange oppgaver kreves for å låse opp tårn?
+    // Kostnad (i antall oppgaver) for å låse opp tårn
     UNLOCK_COSTS: {
-        'blaster': 0, // Alltid åpen
-        'trap': 3,
-        'sniper': 5,
-        'cryo': 8,
-        'cannon': 10,
-        'tesla': 15
+        'blaster': 0, 
+        'trap': 2,
+        'sniper': 4,
+        'cryo': 6,
+        'cannon': 8,
+        'tesla': 12
     }
 };
 
 const TOWERS = {
     blaster: { name: "Blaster", cost: 50, range: 120, damage: 10, rate: 30, color: "#00f3ff", type: "single" },
-    trap:    { name: "Mine",    cost: 30, range: 30,  damage: 150, rate: 100,color: "#ffee00", type: "trap" },
-    sniper:  { name: "Railgun", cost: 150, range: 350, damage: 100, rate: 90, color: "#ff0055", type: "single" },
-    cryo:    { name: "Cryo",    cost: 120, range: 100, damage: 5,   rate: 10, color: "#0099ff", type: "slow" },
-    cannon:  { name: "Pulse",   cost: 250, range: 130, damage: 40,  rate: 60, color: "#0aff00", type: "splash" },
-    tesla:   { name: "Tesla",   cost: 500, range: 180, damage: 20,  rate: 5,  color: "#ffffff", type: "chain" }
+    trap:    { name: "Mine",    cost: 30, range: 30,  damage: 200, rate: 100,color: "#ffee00", type: "trap" },
+    sniper:  { name: "Railgun", cost: 150, range: 400, damage: 120, rate: 80, color: "#ff0055", type: "single" },
+    cryo:    { name: "Cryo",    cost: 120, range: 100, damage: 4,   rate: 8,  color: "#0099ff", type: "slow" },
+    cannon:  { name: "Pulse",   cost: 250, range: 140, damage: 45,  rate: 50, color: "#0aff00", type: "splash" },
+    tesla:   { name: "Tesla",   cost: 500, range: 180, damage: 25,  rate: 5,  color: "#ffffff", type: "chain" }
 };
 
 // --- 2. GLOBAL STATE ---
 const state = {
+    gameState: 'LOBBY', // 'LOBBY', 'PLAYING', 'GAMEOVER'
     money: CONFIG.STARTING_MONEY,
     lives: CONFIG.STARTING_LIVES,
     wave: 0,
+    score: 0,
+    highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
     
     // Miner
     minerLvl: 1,
-    minerTimer: 0,
     
     // Game Objects
     towers: [],
@@ -51,18 +53,20 @@ const state = {
     
     // Research / Unlocks
     unlockedTowers: ['blaster'],
+    selectedBlueprint: null, 
     
-    // Interaction
-    selectedBlueprint: null, // Hvilket tårn vi holder i musa for å bygge
-    isPaused: false,
+    // Wave Logic
+    enemiesToSpawn: 0,
+    spawnTimer: null,
     
     // Math Task State
     mathTask: {
         active: false,
-        type: null,     // 'UNLOCK', 'UPGRADE_TOWER', 'UPGRADE_MINER'
-        target: null,   // Referanse til tårnet eller typen
-        remaining: 0,   // Antall oppgaver igjen
-        total: 0
+        type: null,     
+        target: null,   
+        remaining: 0,   
+        total: 0,
+        answer: 0
     }
 };
 
@@ -77,8 +81,10 @@ function playSound(type) {
     
     if (type === 'shoot') {
         osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now+0.1);
-        gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now+0.1);
+        gain.gain.setValueAtTime(0.03, now); gain.gain.linearRampToValueAtTime(0, now+0.1);
         osc.start(now); osc.stop(now+0.1);
+    } else if (type === 'hit') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now+0.05); osc.start(now); osc.stop(now+0.05);
     } else if (type === 'correct') {
         osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now+0.2);
         gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.2);
@@ -86,79 +92,126 @@ function playSound(type) {
     } else if (type === 'terminal_open') {
         osc.type = 'square'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(400, now+0.3);
         gain.gain.setValueAtTime(0.05, now); osc.start(now); osc.stop(now+0.3);
+    } else if (type === 'wave_start') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(800, now+1.0);
+        gain.gain.setValueAtTime(0.1, now); osc.start(now); osc.stop(now+1.0);
     }
 }
 
 // --- 4. CORE ENGINE ---
 const game = {
     init: () => {
-        // Setup Map Path
+        // Setup Map Path (Snake pattern)
         state.mapPath = [
-            {x:0, y:100}, {x:800, y:100}, {x:800, y:250}, 
-            {x:200, y:250}, {x:200, y:400}, {x:800, y:400}, 
-            {x:800, y:550}, {x:100, y:550}
+            {x:0, y:100}, {x:850, y:100}, {x:850, y:250}, 
+            {x:150, y:250}, {x:150, y:400}, {x:850, y:400}, 
+            {x:850, y:550}, {x:100, y:550}
         ];
         
         game.updateUI();
         game.renderToolbar();
         
+        // Vis Wave Overlay ved start
+        document.getElementById('wave-bonus').innerText = "0";
+        document.getElementById('wave-overlay').classList.remove('hidden');
+        
         // Start Loops
         requestAnimationFrame(game.loop);
-        setInterval(game.minerTick, 1000); // Passiv inntekt hvert sekund
+        setInterval(game.minerTick, 1000); 
     },
 
     // --- MINER LOGIC ---
     minerTick: () => {
-        if (state.isPaused) return;
-        // Formel: Base * Level
+        if (state.gameState !== 'PLAYING') return; // Miner stopper mellom bølger
+        
         const income = CONFIG.MINER_BASE_RATE * state.minerLvl;
         state.money += income;
         game.updateUI();
-        
-        // Visuell effekt på UI
-        const el = document.getElementById('ui-bits');
-        el.style.textShadow = "0 0 10px #fff";
-        setTimeout(() => el.style.textShadow = "none", 200);
     },
 
     openMinerUpgrade: () => {
-        if (state.isPaused) return;
-        // Oppgaver kreves: Level * 2
+        if (state.gameState !== 'PLAYING') return; 
         const tasks = state.minerLvl * 2;
         game.startMathTask('UPGRADE_MINER', null, tasks, `OPPGRADER MINER TIL LVL ${state.minerLvl + 1}`);
     },
 
     // --- WAVE LOGIC ---
-    nextWave: () => {
-        if (state.isPaused || !state.nextWaveReady) return;
-        
+    startNextWave: () => {
         state.wave++;
-        state.nextWaveReady = false;
-        document.getElementById('wave-timer').innerText = "INCOMING";
+        state.gameState = 'PLAYING';
         
+        // Hide overlays
+        document.querySelectorAll('.overlay-screen').forEach(el => el.classList.add('hidden'));
+        
+        // Setup Wave
         let count = 6 + (state.wave * 3);
-        let hp = 60 + (state.wave * 50);
+        let hp = 60 + (state.wave * 40);
         let speed = 2 + (state.wave * 0.2);
         
-        let spawned = 0;
-        let interval = setInterval(() => {
-            if(state.isPaused) return; // Pause spawning if math is open
-            state.enemies.push({
-                x: state.mapPath[0].x, y: state.mapPath[0].y, pathIdx: 0,
-                hp: hp, maxHp: hp, speed: speed, frozen: 0
-            });
-            spawned++;
-            if (spawned >= count) {
-                clearInterval(interval);
-                state.nextWaveReady = true;
-                document.getElementById('wave-timer').innerText = "READY";
+        state.enemiesToSpawn = count;
+        playSound('wave_start');
+        console.log(`Starting Wave ${state.wave}: ${count} enemies, HP: ${hp}`);
+
+        // Spawn Loop
+        if (state.spawnTimer) clearInterval(state.spawnTimer);
+        state.spawnTimer = setInterval(() => {
+            if (state.gameState !== 'PLAYING') return;
+            
+            if (state.enemiesToSpawn > 0) {
+                state.enemies.push({
+                    x: state.mapPath[0].x, y: state.mapPath[0].y, pathIdx: 0,
+                    hp: hp, maxHp: hp, speed: speed, frozen: 0
+                });
+                state.enemiesToSpawn--;
+            } else {
+                clearInterval(state.spawnTimer);
             }
-        }, 1000);
+        }, 1000); // 1 sek mellom fiender
+        
+        game.updateUI();
+    },
+
+    checkWaveEnd: () => {
+        // Sjekk om bølgen er ferdig (ingen fiender igjen å spawne, og ingen i live)
+        if (state.enemiesToSpawn <= 0 && state.enemies.length === 0 && state.gameState === 'PLAYING') {
+            game.waveComplete();
+        }
+    },
+
+    waveComplete: () => {
+        state.gameState = 'LOBBY';
+        
+        // Bonus points
+        const bonus = state.wave * 100;
+        state.score += bonus;
+        game.checkHighScore();
+        
+        // Show Overlay
+        document.getElementById('wave-bonus').innerText = bonus;
+        document.getElementById('wave-overlay').classList.remove('hidden');
+        
+        // Lukk math terminal hvis den er åpen
+        game.closeMath();
+        game.updateUI();
+    },
+
+    checkHighScore: () => {
+        if (state.score > state.highScore) {
+            state.highScore = state.score;
+            localStorage.setItem('nd_highscore', state.highScore);
+        }
+    },
+
+    gameOver: () => {
+        state.gameState = 'GAMEOVER';
+        document.getElementById('final-score').innerText = state.score;
+        document.getElementById('gameover-overlay').classList.remove('hidden');
+        game.closeMath();
     },
 
     // --- MATH TERMINAL LOGIC ---
     startMathTask: (type, target, count, contextText) => {
-        state.isPaused = true;
+        // VIKTIG: Vi pauser IKKE spillet her!
         state.mathTask = { active: true, type, target, remaining: count, total: count };
         
         const terminal = document.getElementById('math-terminal');
@@ -172,8 +225,11 @@ const game = {
     },
 
     nextQuestion: () => {
-        const a = Math.floor(Math.random() * 11) + 2; // 2-12
-        const b = Math.floor(Math.random() * 9) + 2;  // 2-10
+        // Vanskelighetsgrad øker litt med bølgene
+        const difficulty = Math.min(12, 2 + Math.floor(state.wave / 3)); 
+        const a = Math.floor(Math.random() * 11) + 2; 
+        const b = Math.floor(Math.random() * (9 + difficulty)) + 2;  
+        
         state.mathTask.answer = a * b;
         document.getElementById('math-question').innerText = `${a} x ${b}`;
         document.getElementById('math-input').value = "";
@@ -197,8 +253,8 @@ const game = {
             }
         } else {
             input.value = "";
-            input.classList.add('shake'); // CSS animasjon bør legges til
-            setTimeout(() => input.classList.remove('shake'), 500);
+            input.style.borderBottomColor = "red";
+            setTimeout(() => input.style.borderBottomColor = "#0aff00", 500);
         }
     },
 
@@ -207,17 +263,16 @@ const game = {
         
         if (t.type === 'UPGRADE_MINER') {
             state.minerLvl++;
-            alert("MINER UPGRADED!");
         } 
         else if (t.type === 'UNLOCK') {
             state.unlockedTowers.push(t.target);
-            alert(`${TOWERS[t.target].name} UNLOCKED!`);
             game.renderToolbar();
         }
         else if (t.type === 'UPGRADE_TOWER') {
             t.target.level++;
-            t.target.damage *= 1.5; // 50% mer skade per level
-            t.target.range += 10;
+            t.target.damage *= 1.4; 
+            t.target.range += 15;
+            createParticles(t.target.x, t.target.y, "#ffffff", 20);
         }
 
         game.closeMath();
@@ -225,7 +280,7 @@ const game = {
     },
 
     closeMath: () => {
-        state.isPaused = false;
+        state.mathTask.active = false;
         document.getElementById('math-terminal').classList.add('hidden');
     },
 
@@ -243,6 +298,7 @@ const game = {
             if (isUnlocked) {
                 btn.innerHTML = `<div>${t.name}</div><div class="tower-cost">${t.cost}</div>`;
                 btn.onclick = () => {
+                    if (state.gameState !== 'PLAYING') return;
                     document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
                     state.selectedBlueprint = key;
@@ -251,6 +307,7 @@ const game = {
                 const req = CONFIG.UNLOCK_COSTS[key];
                 btn.innerHTML = `<div class="lock-icon">🔒</div><div>UNLOCK</div>`;
                 btn.onclick = () => {
+                    if (state.gameState !== 'PLAYING') return;
                     game.startMathTask('UNLOCK', key, req, `UNLOCKING BLUEPRINT: ${t.name}`);
                 };
             }
@@ -259,22 +316,23 @@ const game = {
     },
 
     handleCanvasClick: (e) => {
-        if (state.isPaused) return;
+        if (state.gameState !== 'PLAYING') return;
+        if (state.mathTask.active) return; // Kan ikke bygge mens man regner
         
         const rect = document.getElementById('game-canvas').getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // 1. Sjekk om vi klikker på et eksisterende tårn (Upgrade)
+        // 1. Upgrade Tower
         for (let t of state.towers) {
             if (Math.hypot(x - t.x, y - t.y) < 20) {
-                // Oppgave: Level * 1
-                game.startMathTask('UPGRADE_TOWER', t, t.level, `UPGRADING ${TOWERS[t.type].name} TO LVL ${t.level + 1}`);
+                const tasks = t.level * 2;
+                game.startMathTask('UPGRADE_TOWER', t, tasks, `UPGRADING ${TOWERS[t.type].name} TO LVL ${t.level + 1}`);
                 return;
             }
         }
 
-        // 2. Bygg nytt tårn
+        // 2. Build Tower
         if (state.selectedBlueprint) {
             game.buildTower(x, y, state.selectedBlueprint);
         }
@@ -282,10 +340,12 @@ const game = {
 
     buildTower: (x, y, type) => {
         const data = TOWERS[type];
-        // Kollisjonssjekk
+        // Kollisjon
         for (let t of state.towers) {
             if (Math.hypot(x - t.x, y - t.y) < 40) return;
         }
+        // Sjekk om på stien (enkel sjekk mot linjesegmenter)
+        // (Utelatt for enkelhets skyld, men unngå å bygge midt i veien)
         
         if (state.money >= data.cost) {
             state.money -= data.cost;
@@ -293,27 +353,30 @@ const game = {
                 x, y, type, 
                 level: 1,
                 cooldown: 0,
-                angle: 0, // For rotasjon
+                angle: 0, 
                 range: data.range, 
                 damage: data.damage, 
                 maxCooldown: data.rate
             });
+            createParticles(x, y, data.color, 10);
             game.updateUI();
         } else {
-            alert("INSUFFICIENT FUNDS");
+            // Visuell feedback for "Not enough money"
+            document.getElementById('ui-bits').style.color = "red";
+            setTimeout(() => document.getElementById('ui-bits').style.color = "#ffee00", 500);
         }
     },
 
     // --- GAME LOOP ---
     loop: () => {
-        if (!state.isPaused) {
-            game.update();
-        }
+        game.update();
         game.draw();
         requestAnimationFrame(game.loop);
     },
 
     update: () => {
+        if (state.gameState !== 'PLAYING') return;
+
         // Enemies
         for (let i = state.enemies.length - 1; i >= 0; i--) {
             let e = state.enemies[i];
@@ -322,10 +385,7 @@ const game = {
                 state.lives--;
                 state.enemies.splice(i, 1);
                 game.updateUI();
-                if (state.lives <= 0) {
-                    alert("GAME OVER");
-                    location.reload();
-                }
+                if (state.lives <= 0) game.gameOver();
                 continue;
             }
             
@@ -342,12 +402,13 @@ const game = {
                 e.y += Math.sin(angle) * spd;
             }
         }
+        
+        game.checkWaveEnd();
 
         // Towers
         for (let t of state.towers) {
             if (t.cooldown > 0) t.cooldown--;
             
-            // Find target
             let target = null;
             let minDist = t.range;
             for (let e of state.enemies) {
@@ -356,17 +417,12 @@ const game = {
             }
             
             if (target) {
-                // Roter tårn mot fiende
                 t.angle = Math.atan2(target.y - t.y, target.x - t.x);
-                
                 if (t.cooldown <= 0) {
                     t.cooldown = t.maxCooldown;
                     playSound('shoot');
                     state.projectiles.push({
-                        x: t.x, y: t.y, 
-                        target: target, 
-                        type: t.type, 
-                        color: TOWERS[t.type].color 
+                        x: t.x, y: t.y, target: target, type: t.type, color: TOWERS[t.type].color 
                     });
                 }
             }
@@ -381,21 +437,44 @@ const game = {
             let dy = p.target.y - p.y;
             let dist = Math.hypot(dx, dy);
             
-            if (dist < 10) {
-                p.target.hp -= TOWERS[p.type].damage; // Bruk base damage (burde skaleres med tårn level)
-                if (p.target.hp <= 0) {
-                    const idx = state.enemies.indexOf(p.target);
-                    if (idx > -1) {
-                        state.enemies.splice(idx, 1);
-                        state.money += 5;
-                        game.updateUI();
-                    }
+            if (dist < 15) {
+                // Hit Logic
+                if (TOWERS[p.type].type === 'splash') {
+                     state.enemies.forEach(e => {
+                        if (Math.hypot(e.x - p.x, e.y - p.y) < 60) game.damageEnemy(e, TOWERS[p.type].damage);
+                    });
+                    createParticles(p.x, p.y, p.color, 10);
+                } else if (TOWERS[p.type].type === 'slow') {
+                    p.target.frozen = 60; 
+                    game.damageEnemy(p.target, TOWERS[p.type].damage);
+                } else {
+                    game.damageEnemy(p.target, TOWERS[p.type].damage);
                 }
+                
                 state.projectiles.splice(i, 1);
             } else {
                 let angle = Math.atan2(dy, dx);
-                p.x += Math.cos(angle) * 15;
-                p.y += Math.sin(angle) * 15;
+                p.x += Math.cos(angle) * 12;
+                p.y += Math.sin(angle) * 12;
+            }
+        }
+        
+        // Particles
+        updateParticles();
+    },
+
+    damageEnemy: (e, amount) => {
+        e.hp -= amount;
+        if (e.hp <= 0) {
+            const idx = state.enemies.indexOf(e);
+            if (idx > -1) {
+                state.enemies.splice(idx, 1);
+                state.money += 7;
+                state.score += 10;
+                game.checkHighScore();
+                game.updateUI();
+                createParticles(e.x, e.y, "#ff0055", 8);
+                playSound('hit');
             }
         }
     },
@@ -404,50 +483,43 @@ const game = {
         const ctx = document.getElementById('game-canvas').getContext('2d');
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1000, 600);
         
-        // Draw Path
+        // Path
         ctx.strokeStyle = "#222"; ctx.lineWidth = 40; ctx.lineCap = "round"; ctx.lineJoin = "round";
         ctx.beginPath(); ctx.moveTo(state.mapPath[0].x, state.mapPath[0].y);
         for(let p of state.mapPath) ctx.lineTo(p.x, p.y);
         ctx.stroke();
         
-        // Draw Towers
+        // Towers
         for (let t of state.towers) {
             ctx.save();
             ctx.translate(t.x, t.y);
-            
             // Base
-            ctx.fillStyle = "#333";
-            ctx.fillRect(-15, -15, 30, 30);
-            
-            // Level Indicator
-            ctx.fillStyle = "#fff";
-            ctx.font = "10px Arial";
-            ctx.fillText(t.level, -4, 4);
-            
-            // Rotated Turret
+            ctx.fillStyle = "#333"; ctx.fillRect(-15, -15, 30, 30);
+            // Level
+            ctx.fillStyle = "#fff"; ctx.font = "10px Arial"; ctx.fillText("v"+t.level, -6, 4);
+            // Turret
             ctx.rotate(t.angle);
-            ctx.fillStyle = TOWERS[t.type].color;
-            ctx.fillRect(0, -5, 20, 10); // Barrel
-            
+            ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10);
             ctx.restore();
-            
-            // Draw Range if mouse over (enkelt implementert)
-            // ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.beginPath(); ctx.arc(t.x, t.y, t.range, 0, Math.PI*2); ctx.stroke();
         }
         
-        // Draw Enemies
+        // Enemies
         for (let e of state.enemies) {
-            ctx.fillStyle = "#ff0055";
+            ctx.fillStyle = e.frozen > 0 ? "#0099ff" : "#ff0055";
             ctx.beginPath(); ctx.arc(e.x, e.y, 12, 0, Math.PI*2); ctx.fill();
-            // HP Bar
+            // HP
             ctx.fillStyle = "red"; ctx.fillRect(e.x - 10, e.y - 20, 20, 4);
             ctx.fillStyle = "#0aff00"; ctx.fillRect(e.x - 10, e.y - 20, 20 * (e.hp / e.maxHp), 4);
         }
         
-        // Draw Projectiles
+        // Projectiles
         for (let p of state.projectiles) {
-            ctx.fillStyle = p.color;
-            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+        }
+        
+        // Particles
+        for (let p of state.particles) {
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 20; ctx.fillRect(p.x, p.y, 3, 3); ctx.globalAlpha = 1.0;
         }
     },
 
@@ -455,14 +527,26 @@ const game = {
         document.getElementById('ui-bits').innerText = Math.floor(state.money);
         document.getElementById('ui-lives').innerText = state.lives;
         document.getElementById('ui-wave').innerText = state.wave;
+        document.getElementById('ui-score').innerText = state.score;
+        document.getElementById('ui-high').innerText = state.highScore;
         document.getElementById('miner-lvl').innerText = state.minerLvl;
         document.getElementById('miner-rate').innerText = CONFIG.MINER_BASE_RATE * state.minerLvl;
     }
 };
+
+function createParticles(x, y, color, count) {
+    for(let i=0; i<count; i++) state.particles.push({x, y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 20, color});
+}
+function updateParticles() {
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+        let p = state.particles[i]; p.x += p.vx; p.y += p.vy; p.life--;
+        if (p.life <= 0) state.particles.splice(i, 1);
+    }
+}
 
 // --- EVENTS ---
 document.getElementById('game-canvas').addEventListener('mousedown', game.handleCanvasClick);
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #09 */
+/* Version: #12 */
