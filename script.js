@@ -1,10 +1,10 @@
-/* Version: #04 */
+/* Version: #05 */
 /**
  * NEON DEFENSE: MATH CORE - SCRIPT
  * Inneholder spill-logikk, lagring, lyd-motor og render-loop.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V4 ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V5 (HARDCORE) ---");
 
 // --- 1. KONFIGURASJON ---
 const CONFIG = {
@@ -17,23 +17,24 @@ const CONFIG = {
     },
     // Poengsum (Total Score) som kreves for å låse opp tårn
     unlockThresholds: {
-        'blaster': 0,      // Start-tårn
-        'trap': 150,       // Krever litt innsats
-        'sniper': 500,     // Krever ca 40-50 rette svar
-        'cryo': 1000,      // Krever mer
-        'cannon': 2000,    // Krever mye
+        'blaster': 0,      // Start-tårn (Nå veldig svak)
+        'trap': 150,       // Mine
+        'sniper': 500,     // Railgun (Viktig for damage)
+        'cryo': 1000,      // Slow (Viktig for raske fiender)
+        'cannon': 2000,    // Splash
         'tesla': 4000      // Endgame
     }
 };
 
 // Data for tårnene
 const TOWERS = {
-    blaster: { name: "Blaster", cost: 50, range: 100, damage: 20, rate: 30, color: "#00f3ff", type: "single" },
-    trap:    { name: "Mine",    cost: 30, range: 30,  damage: 150, rate: 100,color: "#ffee00", type: "trap" }, // Økt skade
-    sniper:  { name: "Railgun", cost: 150, range: 300, damage: 120, rate: 90, color: "#ff0055", type: "single" },
+    // NERF: Blaster damage redusert fra 20 til 8.
+    blaster: { name: "Blaster", cost: 50, range: 100, damage: 8,  rate: 30, color: "#00f3ff", type: "single" },
+    trap:    { name: "Mine",    cost: 30, range: 30,  damage: 200, rate: 100,color: "#ffee00", type: "trap" },
+    sniper:  { name: "Railgun", cost: 150, range: 300, damage: 150, rate: 90, color: "#ff0055", type: "single" },
     cryo:    { name: "Cryo",    cost: 120, range: 90,  damage: 5,   rate: 10, color: "#0099ff", type: "slow" },
-    cannon:  { name: "Pulse",   cost: 250, range: 120, damage: 50,  rate: 60, color: "#0aff00", type: "splash" },
-    tesla:   { name: "Tesla",   cost: 500, range: 160, damage: 20,  rate: 5,  color: "#ffffff", type: "chain" }
+    cannon:  { name: "Pulse",   cost: 250, range: 120, damage: 60,  rate: 60, color: "#0aff00", type: "splash" },
+    tesla:   { name: "Tesla",   cost: 500, range: 160, damage: 25,  rate: 5,  color: "#ffffff", type: "chain" }
 };
 
 // --- 2. GLOBAL STATE (Tilstand) ---
@@ -48,14 +49,14 @@ const state = {
     mathScore: 0,
     currentAnswer: 0,
     mathLevel: 1,
-    mathCombo: 1, // Ny variabel for combo multiplier
+    mathCombo: 1,
     mathLoop: null,
     
     // Tower Defense variabler
     tdLoop: null,
     lives: 20,
     wave: 1,
-    money: 0, // Penger inne i selve TD-runden
+    money: 0,
     towers: [],
     enemies: [],
     projectiles: [],
@@ -96,10 +97,8 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.05);
     } else if (type === 'correct') {
-        // Høyere tone for combo
         let freq = 440 + (state.mathCombo * 50); 
         if (freq > 1200) freq = 1200;
-        
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now);
         osc.frequency.exponentialRampToValueAtTime(freq * 2, now + 0.1);
@@ -132,7 +131,6 @@ const game = {
         game.updateUI();
         game.checkUnlocks();
         
-        // Definer stien fiendene skal gå
         state.mapPath = [
             {x:0, y:80}, {x:700, y:80}, 
             {x:700, y:200}, {x:100, y:200}, 
@@ -180,7 +178,7 @@ const game = {
         state.mathScore = 0;
         state.mathTimer = 60; 
         state.mathLevel = lvl;
-        state.mathCombo = 1; // Reset combo
+        state.mathCombo = 1; 
 
         document.getElementById('math-score').innerText = "0";
         document.getElementById('math-timer').innerText = "60";
@@ -217,15 +215,10 @@ const game = {
         if (isNaN(val)) return;
 
         if (val === state.currentAnswer) {
-            // RIKTIG SVAR
             playSound('correct');
-            
-            // Beregn poeng med combo multiplier
             const points = 10 * state.mathCombo;
             state.mathScore += points;
             state.totalScore += points;
-            
-            // Øk combo
             state.mathCombo++;
             
             document.getElementById('math-score').innerText = state.mathScore;
@@ -235,13 +228,9 @@ const game = {
             feedback.style.color = "#0aff00";
             game.nextMathQuestion();
         } else {
-            // FEIL SVAR
             playSound('wrong');
-            
-            // Reset combo
             state.mathCombo = 1;
             document.getElementById('math-combo').innerText = state.mathCombo;
-            
             feedback.innerText = "FEIL! Combo mistet.";
             feedback.style.color = "#ff0055";
             input.value = "";
@@ -327,6 +316,17 @@ const game = {
         const type = state.selectedTower;
         const data = TOWERS[type];
         
+        // --- NYTT: Sjekk kollisjon med andre tårn ---
+        // Vi krever 40px avstand mellom tårn
+        for (let t of state.towers) {
+            let dist = Math.hypot(x - t.x, y - t.y);
+            if (dist < 40) {
+                console.log("Too close to another tower");
+                alert("For trangt! Sett tårnet litt lenger unna.");
+                return; // Avbryt plassering
+            }
+        }
+        
         if (state.money >= data.cost) {
             state.money -= data.cost;
             state.bits = state.money; 
@@ -358,15 +358,16 @@ const game = {
         document.getElementById('td-wave').innerText = state.wave;
         document.getElementById('wave-info').style.opacity = 0;
         
-        // --- ØKT VANSKELIGHETSGRAD ---
-        // Flere fiender: Starter på 8, øker med 3 per bølge
-        let count = 8 + (state.wave * 3); 
+        // --- VANSKELIGHETSGRAD V5 (HARDCORE) ---
+        // Flere fiender
+        let count = 8 + (state.wave * 4); 
         
-        // Helse: Starter på 50, øker kraftig per bølge
-        let hp = 50 + (state.wave * 40); 
+        // Helse: Starter på 100, øker med 80 per bølge. 
+        // Bølge 1: 180 HP. Bølge 5: 500 HP. Blaster gjør 8 skade.
+        let hp = 100 + (state.wave * 80); 
         
-        // Fart: Øker sakte
-        let speed = 1.5 + (state.wave * 0.15);
+        // Fart: Starter på 2.0, øker med 0.25 per bølge.
+        let speed = 2.0 + (state.wave * 0.25);
         
         console.log(`Wave ${state.wave}: Count=${count}, HP=${hp}, Speed=${speed}`);
         
@@ -388,7 +389,7 @@ const game = {
                 document.getElementById('wave-info').style.opacity = 1;
                 document.getElementById('wave-info').innerText = "Neste bølge (Klikk 'N')";
             }
-        }, 800); // Litt raskere spawning enn før (800ms)
+        }, 700); // Raskere spawning (700ms)
     },
 
     loopTD: () => {
@@ -561,7 +562,7 @@ const game = {
     },
 
     gameOverTD: () => {
-        alert("SYSTEM FAILURE! Kjernen er ødelagt.\nTips: Bruk 'Math Mode' for å tjene mer BITS og kjøpe flere tårn.");
+        alert("SYSTEM FAILURE! Kjernen er ødelagt.\nTips: Du trenger bedre tårn! Gå tilbake og tren mer matte.");
         game.returnToMenu();
     },
     
@@ -624,4 +625,4 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.onload = game.init;
-/* Version: #04 */
+/* Version: #05 */
