@@ -1,5 +1,5 @@
-/* Version: #12 */
-/* --- CSS: NEON DEFENSE WIDESCREEN --- */
+/* Version: #16 */
+/* --- CSS: NEON DEFENSE CONFIGURABLE --- */
 
 :root {
     --bg: #050510;
@@ -34,11 +34,11 @@ body {
     opacity: 0.3;
 }
 
-/* --- GAME CONTAINER (Resized) --- */
+/* --- GAME CONTAINER --- */
 #game-container {
     position: relative;
-    width: 1100px; /* Økt bredde */
-    height: 750px; /* Økt høyde for å gi plass til UI */
+    width: 1100px;
+    height: 750px;
     box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
     border: 1px solid #333;
     background: #000;
@@ -59,27 +59,42 @@ body {
     pointer-events: none;
 }
 
+/* Top Bar */
 .top-bar {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
     padding: 15px 20px;
     background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
     pointer-events: auto;
 }
+
+/* Config Button */
+#btn-config {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--neon-blue);
+    color: var(--neon-blue);
+    padding: 5px 15px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    margin-right: 30px;
+    font-size: 0.9rem;
+    transition: 0.2s;
+}
+#btn-config:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 10px var(--neon-blue); }
 
 .stat-box {
     font-size: 1.1rem;
     font-weight: bold;
     text-shadow: 0 0 5px currentColor;
     min-width: 100px;
+    margin-right: 15px;
 }
 .stat-box.small { font-size: 0.9rem; color: #888; }
 
-/* Miner Panel - FLYTTET TIL HØYRE */
+/* Miner Panel */
 #miner-panel {
     position: absolute;
-    top: 100px; 
-    right: 20px; /* Flyttet fra left til right */
+    top: 100px; right: 20px;
     width: 160px;
     background: var(--glass);
     border: 1px solid var(--neon-yellow);
@@ -89,21 +104,16 @@ body {
     transition: 0.2s;
     box-shadow: 0 0 10px rgba(255, 238, 0, 0.1);
 }
-
-#miner-panel:hover {
-    background: rgba(40, 40, 20, 0.9);
-    transform: scale(1.02);
-}
+#miner-panel:hover { background: rgba(40, 40, 20, 0.9); transform: scale(1.02); }
 
 .panel-title { font-size: 0.8rem; color: #aaa; margin-bottom: 5px; border-bottom: 1px solid #444; }
 .panel-stat { font-size: 1rem; margin: 2px 0; }
 .upgrade-hint { font-size: 0.6rem; color: var(--neon-green); margin-top: 5px; animation: blink 2s infinite; }
 
-/* Toolbar - Ligger i bunnen */
+/* Toolbar */
 #toolbar {
     position: absolute;
-    bottom: 20px; 
-    left: 50%;
+    bottom: 20px; left: 50%;
     transform: translateX(-50%);
     display: flex;
     gap: 8px;
@@ -118,14 +128,8 @@ body {
     width: 65px; height: 75px;
     border: 1px solid #444;
     background: rgba(0,0,0,0.5);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: 0.2s;
-    font-size: 0.65rem;
-    color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.2s; font-size: 0.65rem; color: #fff;
 }
 .tower-btn:hover { background: #222; border-color: white; }
 .tower-btn.selected { background: var(--neon-blue); color: black; border-color: white; box-shadow: 0 0 15px var(--neon-blue); }
@@ -135,24 +139,17 @@ body {
 
 /* Math Terminal */
 #math-terminal {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-    pointer-events: auto;
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; justify-content: center; align-items: center;
+    z-index: 100; pointer-events: auto;
 }
 .hidden { display: none !important; }
 
 .terminal-window {
     width: 500px;
-    background: rgba(0, 0, 0, 0.7); 
-    backdrop-filter: blur(4px);
-    border: 2px solid var(--neon-green);
-    box-shadow: 0 0 30px var(--neon-green);
-    padding: 30px;
-    text-align: center;
+    background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+    border: 2px solid var(--neon-green); box-shadow: 0 0 30px var(--neon-green);
+    padding: 30px; text-align: center;
 }
 
 .terminal-header { color: var(--neon-green); font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px dashed var(--neon-green); padding-bottom: 10px; }
@@ -169,6 +166,46 @@ body {
 }
 .btn-cancel:hover { border-color: red; color: red; }
 
+/* --- CONFIG OVERLAY --- */
+#table-selector {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); /* 2-7, 8-12 + All */
+    gap: 15px;
+    margin: 30px 0;
+    max-width: 700px;
+}
+
+.table-btn {
+    width: 60px; height: 60px;
+    background: #0a0a0a;
+    border: 2px solid #333;
+    color: #555;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex; justify-content: center; align-items: center;
+    transition: 0.2s;
+    font-family: var(--font-main);
+}
+
+.table-btn:hover { border-color: #666; color: #aaa; }
+
+.table-btn.active {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    box-shadow: 0 0 15px var(--neon-green);
+    background: rgba(10, 255, 0, 0.1);
+    font-weight: bold;
+}
+
+#bonus-display {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    border: 1px solid var(--neon-yellow);
+    padding: 10px 30px;
+    background: rgba(255, 238, 0, 0.1);
+    color: white;
+}
+
 /* Overlays */
 .overlay-screen {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -183,7 +220,11 @@ body {
     padding: 15px 40px; font-family: var(--font-main); font-size: 1.5rem; cursor: pointer; transition: 0.2s; text-transform: uppercase;
 }
 .btn-large:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 30px var(--neon-blue); }
+.btn-small {
+    background: transparent; border: 1px solid #555; color: #aaa; padding: 10px 20px; font-family: var(--font-main); cursor: pointer; margin-top: 10px;
+}
+.btn-small:hover { border-color: white; color: white; }
 
 @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
 .blink { animation: blink 1s infinite; }
-/* Version: #12 */
+/* Version: #16 */
