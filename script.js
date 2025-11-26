@@ -1,10 +1,10 @@
-/* Version: #20 */
+/* Version: #21 */
 /**
- * NEON DEFENSE: SCRIPT V20
- * Fixes: Crash protection for missing images, Aspect Ratio handling.
+ * NEON DEFENSE: BIGGER & BETTER
+ * Endringer: Oppskalerte sprites, bredere vei, flyttet versjonstekst.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V20 (STABILITY) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V21 (BIGGER) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -19,12 +19,13 @@ const CONFIG = {
 };
 
 const TOWERS = {
-    blaster: { name: "Blaster", cost: 50, range: 120, damage: 10, rate: 30, color: "#00f3ff", type: "single", img: "blaster" },
-    trap:    { name: "Mine",    cost: 30, range: 40,  damage: 250, rate: 0,   color: "#ffee00", type: "trap",   img: "trap" },
-    sniper:  { name: "Railgun", cost: 150, range: 400, damage: 120, rate: 80, color: "#ff0055", type: "single", img: "sniper" },
-    cryo:    { name: "Cryo",    cost: 120, range: 100, damage: 4,   rate: 8,  color: "#0099ff", type: "slow",   img: "cryo" },
-    cannon:  { name: "Pulse",   cost: 250, range: 140, damage: 45,  rate: 50, color: "#0aff00", type: "splash", img: "cannon" },
-    tesla:   { name: "Tesla",   cost: 500, range: 180, damage: 25,  rate: 5,  color: "#ffffff", type: "chain",  img: "tesla" }
+    // Økt range litt siden banen er bredere
+    blaster: { name: "Blaster", cost: 50, range: 150, damage: 10, rate: 30, color: "#00f3ff", type: "single", img: "blaster" },
+    trap:    { name: "Mine",    cost: 30, range: 60,  damage: 250, rate: 0,   color: "#ffee00", type: "trap",   img: "trap" },
+    sniper:  { name: "Railgun", cost: 150, range: 450, damage: 120, rate: 80, color: "#ff0055", type: "single", img: "sniper" },
+    cryo:    { name: "Cryo",    cost: 120, range: 140, damage: 4,   rate: 8,  color: "#0099ff", type: "slow",   img: "cryo" },
+    cannon:  { name: "Pulse",   cost: 250, range: 160, damage: 45,  rate: 50, color: "#0aff00", type: "splash", img: "cannon" },
+    tesla:   { name: "Tesla",   cost: 500, range: 200, damage: 25,  rate: 5,  color: "#ffffff", type: "chain",  img: "tesla" }
 };
 
 // --- 2. ASSETS LOADER ---
@@ -35,7 +36,6 @@ const ASSETS = {
     enemy_basic: new Image(), enemy_fast: new Image(), enemy_tank: new Image()
 };
 
-// Sjekk at disse filnavnene stemmer 100% med Github (store/små bokstaver)
 ASSETS.base.src = 'assets/tower_base.png';
 ASSETS.core.src = 'assets/core.png';
 ASSETS.miner.src = 'assets/miner.png';
@@ -115,6 +115,7 @@ function playSound(type) {
 // --- 5. CORE ENGINE ---
 const game = {
     init: () => {
+        // Justert path for bredere vei
         state.mapPath = [
             {x:-50, y:140}, {x:850, y:140}, 
             {x:850, y:280}, {x:150, y:280}, 
@@ -396,7 +397,8 @@ const game = {
         const y = (e.clientY - rect.top) * scaleY;
 
         for (let t of state.towers) {
-            if (Math.hypot(x - t.x, y - t.y) < 30) {
+            // Økt hit-box radius fra 30 til 40 for lettere klikking
+            if (Math.hypot(x - t.x, y - t.y) < 40) {
                 const tasks = t.level * 2;
                 game.startMathTask('UPGRADE_TOWER', t, tasks, `UPGRADING ${TOWERS[t.type].name} TO LVL ${t.level + 1}`);
                 return;
@@ -410,8 +412,9 @@ const game = {
 
     buildTower: (x, y, type) => {
         const data = TOWERS[type];
+        // Økt kollisjonsradius fra 50 til 85 for å hindre overlapping av store tårn
         for (let t of state.towers) {
-            if (Math.hypot(x - t.x, y - t.y) < 50) return; 
+            if (Math.hypot(x - t.x, y - t.y) < 85) return; 
         }
         
         if (state.money >= data.cost) {
@@ -429,10 +432,9 @@ const game = {
         }
     },
 
-    // --- DRAW HELPER: ASPECT RATIO SAFE ---
+    // --- DRAW HELPER ---
     drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
         if (img && img.complete && img.naturalWidth > 0) {
-            // Beregn skala for å passe innenfor w/h (fit)
             let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
             let newW = img.naturalWidth * scale;
             let newH = img.naturalHeight * scale;
@@ -577,56 +579,62 @@ const game = {
         const ctx = document.getElementById('game-canvas').getContext('2d');
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1100, 750);
         
-        // Decor
-        game.drawSprite(ctx, ASSETS.core, 50, 560, 60, 60);
-        game.drawSprite(ctx, ASSETS.miner, 950, 50, 60, 60);
+        // Decor (Oppskalert)
+        game.drawSprite(ctx, ASSETS.core, 50, 560, 100, 100);
+        game.drawSprite(ctx, ASSETS.miner, 950, 50, 100, 100);
 
-        // Path
-        ctx.strokeStyle = "#222"; ctx.lineWidth = 40; ctx.lineCap = "round"; ctx.lineJoin = "round";
+        // Path (Bredere: 80px)
+        ctx.strokeStyle = "#1a1a2e"; ctx.lineWidth = 80; ctx.lineCap = "round"; ctx.lineJoin = "round";
         ctx.beginPath(); ctx.moveTo(state.mapPath[0].x, state.mapPath[0].y);
         for(let p of state.mapPath) ctx.lineTo(p.x, p.y);
         ctx.stroke();
         
-        // Towers
+        // Towers (Oppskalert til 80x80)
         for (let t of state.towers) {
             if (t.type === 'trap') {
-                if(!game.drawSprite(ctx, ASSETS.trap, t.x, t.y, 40, 40)) {
-                    ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(t.x, t.y, 15, 0, Math.PI*2); ctx.fill();
+                if(!game.drawSprite(ctx, ASSETS.trap, t.x, t.y, 60, 60)) {
+                    ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(t.x, t.y, 25, 0, Math.PI*2); ctx.fill();
                 }
             } else {
-                game.drawSprite(ctx, ASSETS.base, t.x, t.y, 50, 50);
+                game.drawSprite(ctx, ASSETS.base, t.x, t.y, 80, 80);
                 let rot = t.angle;
-                if(t.type === 'sniper') rot += Math.PI; // Fix rotation for sniper
+                if(t.type === 'sniper') rot += Math.PI; 
                 
-                if(!game.drawSprite(ctx, ASSETS[TOWERS[t.type].img], t.x, t.y, 50, 50, rot)) {
+                if(!game.drawSprite(ctx, ASSETS[TOWERS[t.type].img], t.x, t.y, 80, 80, rot)) {
                      ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.angle);
                      ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10);
                      ctx.restore();
                 }
             }
-            ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.fillText("v"+t.level, t.x-6, t.y+5);
+            
+            // Version Text (Flyttet NED og gjort STØRRE)
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(t.x - 12, t.y + 35, 24, 16); // Bakgrunnsboks
+            ctx.fillStyle = "#fff"; 
+            ctx.font = "bold 14px Arial"; 
+            ctx.fillText("v"+t.level, t.x-8, t.y+48); // Flyttet ned
         }
         
-        // Enemies
+        // Enemies (Oppskalert)
         for (let e of state.enemies) {
-            let size = (e.type === 'tank') ? 50 : 35;
+            let size = (e.type === 'tank') ? 70 : 50;
             if(!game.drawSprite(ctx, ASSETS['enemy_' + e.type], e.x, e.y, size, size)) {
                  ctx.fillStyle = e.type === 'fast' ? "orange" : (e.type === 'tank' ? "purple" : "red");
-                 ctx.beginPath(); ctx.arc(e.x, e.y, 12, 0, Math.PI*2); ctx.fill();
+                 ctx.beginPath(); ctx.arc(e.x, e.y, 18, 0, Math.PI*2); ctx.fill();
             }
-            // HP Bar
-            ctx.fillStyle = "red"; ctx.fillRect(e.x - 15, e.y - 25, 30, 4);
-            ctx.fillStyle = "#0aff00"; ctx.fillRect(e.x - 15, e.y - 25, 30 * (e.hp / e.maxHp), 4);
+            // HP Bar (Større)
+            ctx.fillStyle = "red"; ctx.fillRect(e.x - 20, e.y - 35, 40, 6);
+            ctx.fillStyle = "#0aff00"; ctx.fillRect(e.x - 20, e.y - 35, 40 * (e.hp / e.maxHp), 6);
         }
         
         // Projectiles
         for (let p of state.projectiles) {
-            ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
         }
         
         // Particles
         for (let p of state.particles) {
-            ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 20; ctx.fillRect(p.x, p.y, 3, 3); ctx.globalAlpha = 1.0;
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 20; ctx.fillRect(p.x, p.y, 4, 4); ctx.globalAlpha = 1.0;
         }
     },
 
@@ -643,7 +651,7 @@ const game = {
 };
 
 function createParticles(x, y, color, count) {
-    for(let i=0; i<count; i++) state.particles.push({x, y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 20, color});
+    for(let i=0; i<count; i++) state.particles.push({x, y, vx: (Math.random()-0.5)*7, vy: (Math.random()-0.5)*7, life: 20, color});
 }
 function updateParticles() {
     for (let i = state.particles.length - 1; i >= 0; i--) {
@@ -656,4 +664,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #20 */
+/* Version: #21 */
