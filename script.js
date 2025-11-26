@@ -1,10 +1,10 @@
-/* Version: #19 */
+/* Version: #20 */
 /**
- * NEON DEFENSE: SCRIPT V19
- * Endringer: Spawn Queue system for miksede bølger.
+ * NEON DEFENSE: SCRIPT V20
+ * Fixes: Crash protection for missing images, Aspect Ratio handling.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V19 (MIXED WAVES) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V20 (STABILITY) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -35,7 +35,7 @@ const ASSETS = {
     enemy_basic: new Image(), enemy_fast: new Image(), enemy_tank: new Image()
 };
 
-// Last inn bilder (pass på at filnavnene stemmer med mappen din)
+// Sjekk at disse filnavnene stemmer 100% med Github (store/små bokstaver)
 ASSETS.base.src = 'assets/tower_base.png';
 ASSETS.core.src = 'assets/core.png';
 ASSETS.miner.src = 'assets/miner.png';
@@ -71,8 +71,7 @@ const state = {
     unlockedTowers: ['blaster'],
     selectedBlueprint: null, 
     
-    // NYTT: Spawn Queue
-    spawnQueue: [], // Liste over fiender som skal spawne denne runden
+    spawnQueue: [], 
     spawnTimer: null,
     
     mathTask: { active: false, type: null, target: null, remaining: 0, total: 0, answer: 0 }
@@ -195,9 +194,7 @@ const game = {
         game.startMathTask('UPGRADE_MINER', null, tasks, `OPPGRADER MINER TIL LVL ${state.minerLvl + 1}`);
     },
 
-    // --- WAVE LOGIC (SPAWN POOL) ---
-    
-    // Hjelpefunksjon for å stokke listen (Fisher-Yates)
+    // --- WAVE LOGIC ---
     shuffle: (array) => {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -208,25 +205,19 @@ const game = {
 
     generateWavePool: (wave) => {
         let pool = [];
-        let total = 12 + (wave * 4); // Totalt antall fiender
-        
-        // Bestem antall av hver type
+        let total = 12 + (wave * 4); 
         let numFast = 0;
         let numTank = 0;
 
-        if (wave === 2) numFast = 1; // Wave 2: Minst én rask
-        else if (wave >= 3) numFast = Math.floor(total * 0.2); // 20% raske
-        
-        if (wave >= 6) numTank = Math.floor(total * 0.15); // 15% tanks fra wave 6
+        if (wave === 2) numFast = 1; 
+        else if (wave >= 3) numFast = Math.floor(total * 0.2); 
+        if (wave >= 6) numTank = Math.floor(total * 0.15); 
 
         let numBasic = total - numFast - numTank;
-
-        // Fyll listen
         for(let i=0; i<numBasic; i++) pool.push('basic');
         for(let i=0; i<numFast; i++) pool.push('fast');
         for(let i=0; i<numTank; i++) pool.push('tank');
 
-        // Stokk listen godt
         return game.shuffle(pool);
     },
 
@@ -235,25 +226,20 @@ const game = {
         state.gameState = 'PLAYING';
         document.querySelectorAll('.overlay-screen').forEach(el => el.classList.add('hidden'));
         
-        // Generer Spawn Queue
         state.spawnQueue = game.generateWavePool(state.wave);
-        
-        // Base stats for bølgen
         let hpBase = 60 + (state.wave * 35);
         let speedBase = 0.8 + (state.wave * 0.15);
         
+        state.enemiesToSpawn = state.spawnQueue.length;
         playSound('wave_start');
-        console.log(`Wave ${state.wave}: ${state.spawnQueue.length} enemies. Pool:`, state.spawnQueue);
+        console.log(`Wave ${state.wave}: ${state.enemiesToSpawn} enemies.`);
 
         if (state.spawnTimer) clearInterval(state.spawnTimer);
         state.spawnTimer = setInterval(() => {
             if (state.gameState !== 'PLAYING') return;
             
-            // Hent neste fiende fra køen
             if (state.spawnQueue.length > 0) {
-                const type = state.spawnQueue.pop(); // Tar siste (eller første) fra stokket liste
-                
-                // Juster stats basert på type
+                const type = state.spawnQueue.pop(); 
                 let eHp = hpBase;
                 let eSpeed = speedBase;
                 
@@ -273,7 +259,6 @@ const game = {
     },
 
     checkWaveEnd: () => {
-        // Sjekk om køen er tom OG ingen fiender på banen
         if (state.spawnQueue.length === 0 && state.enemies.length === 0 && state.gameState === 'PLAYING') {
             game.waveComplete();
         }
@@ -444,6 +429,24 @@ const game = {
         }
     },
 
+    // --- DRAW HELPER: ASPECT RATIO SAFE ---
+    drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
+        if (img && img.complete && img.naturalWidth > 0) {
+            // Beregn skala for å passe innenfor w/h (fit)
+            let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+            let newW = img.naturalWidth * scale;
+            let newH = img.naturalHeight * scale;
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.drawImage(img, -newW/2, -newH/2, newW, newH);
+            ctx.restore();
+            return true;
+        }
+        return false;
+    },
+
     // --- GAME LOOP ---
     loop: () => {
         game.update();
@@ -574,8 +577,9 @@ const game = {
         const ctx = document.getElementById('game-canvas').getContext('2d');
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1100, 750);
         
-        if(ASSETS.core.complete) ctx.drawImage(ASSETS.core, 20, 530, 60, 60);
-        if(ASSETS.miner.complete) ctx.drawImage(ASSETS.miner, 950, 50, 60, 60);
+        // Decor
+        game.drawSprite(ctx, ASSETS.core, 50, 560, 60, 60);
+        game.drawSprite(ctx, ASSETS.miner, 950, 50, 60, 60);
 
         // Path
         ctx.strokeStyle = "#222"; ctx.lineWidth = 40; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -585,37 +589,31 @@ const game = {
         
         // Towers
         for (let t of state.towers) {
-            ctx.save();
-            ctx.translate(t.x, t.y);
-            
             if (t.type === 'trap') {
-                if(ASSETS.trap.complete) ctx.drawImage(ASSETS.trap, -20, -20, 40, 40);
-                else { ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill(); }
+                if(!game.drawSprite(ctx, ASSETS.trap, t.x, t.y, 40, 40)) {
+                    ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(t.x, t.y, 15, 0, Math.PI*2); ctx.fill();
+                }
             } else {
-                if(ASSETS.base.complete) ctx.drawImage(ASSETS.base, -25, -25, 50, 50);
-                ctx.rotate(t.angle);
-                if (t.type === 'sniper') ctx.rotate(Math.PI); 
-                let img = ASSETS[TOWERS[t.type].img];
-                if(img && img.complete) ctx.drawImage(img, -25, -25, 50, 50);
-                else { ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10); }
+                game.drawSprite(ctx, ASSETS.base, t.x, t.y, 50, 50);
+                let rot = t.angle;
+                if(t.type === 'sniper') rot += Math.PI; // Fix rotation for sniper
+                
+                if(!game.drawSprite(ctx, ASSETS[TOWERS[t.type].img], t.x, t.y, 50, 50, rot)) {
+                     ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.angle);
+                     ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10);
+                     ctx.restore();
+                }
             }
-            ctx.restore();
             ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.fillText("v"+t.level, t.x-6, t.y+5);
         }
         
         // Enemies
         for (let e of state.enemies) {
-            ctx.save();
-            ctx.translate(e.x, e.y);
-            let img = ASSETS['enemy_' + e.type];
-            if(img && img.complete) {
-                let size = (e.type === 'tank') ? 50 : 30;
-                ctx.drawImage(img, -size/2, -size/2, size, size);
-            } else {
-                ctx.fillStyle = e.type === 'fast' ? "orange" : (e.type === 'tank' ? "purple" : "red");
-                ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            let size = (e.type === 'tank') ? 50 : 35;
+            if(!game.drawSprite(ctx, ASSETS['enemy_' + e.type], e.x, e.y, size, size)) {
+                 ctx.fillStyle = e.type === 'fast' ? "orange" : (e.type === 'tank' ? "purple" : "red");
+                 ctx.beginPath(); ctx.arc(e.x, e.y, 12, 0, Math.PI*2); ctx.fill();
             }
-            ctx.restore();
             // HP Bar
             ctx.fillStyle = "red"; ctx.fillRect(e.x - 15, e.y - 25, 30, 4);
             ctx.fillStyle = "#0aff00"; ctx.fillRect(e.x - 15, e.y - 25, 30 * (e.hp / e.maxHp), 4);
@@ -658,4 +656,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #19 */
+/* Version: #20 */
