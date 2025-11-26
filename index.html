@@ -1,4 +1,4 @@
-<!-- Version: #22 -->
+<!-- Version: #23 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
@@ -7,13 +7,15 @@
     <title>NEON DEFENSE: LEVELS</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Hindrer favicon 404 feil -->
+    <link rel="icon" href="data:,">
 </head>
 <body>
 
     <div id="scanlines"></div>
     
     <div id="game-container">
-        <!-- SPILL-LERRET (Økt til 1280x800) -->
+        <!-- SPILL-LERRET (1280x800) -->
         <canvas id="game-canvas" width="1280" height="800"></canvas>
 
         <!-- UI HUD -->
@@ -23,7 +25,8 @@
                 
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
-                <!-- NYTT: Viser Level og Wave X/10 -->
+                
+                <!-- HER ER FELTENE SOM MANGLER I DIN VERSJON: -->
                 <div class="stat-box">LEVEL: <span id="ui-level" style="color:#00f3ff">1</span></div>
                 <div class="stat-box">WAVE: <span id="ui-wave">1</span>/10</div>
                 
@@ -97,4 +100,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #22 -->
+<!-- Version: #23 -->
