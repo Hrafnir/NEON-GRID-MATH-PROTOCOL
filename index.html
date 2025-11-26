@@ -1,13 +1,12 @@
-<!-- Version: #23 -->
+<!-- Version: #24 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: LEVELS</title>
+    <title>NEON DEFENSE: FINAL</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    <!-- Hindrer favicon 404 feil -->
     <link rel="icon" href="data:,">
 </head>
 <body>
@@ -15,25 +14,19 @@
     <div id="scanlines"></div>
     
     <div id="game-container">
-        <!-- SPILL-LERRET (1280x800) -->
         <canvas id="game-canvas" width="1280" height="800"></canvas>
 
         <!-- UI HUD -->
-        <div id="ui-layer">
+        <div id="ui-layer" class="hidden">
             <div class="top-bar">
                 <button id="btn-config" onclick="game.openConfig()">⚙ CONFIG</button>
-                
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
-                
-                <!-- HER ER FELTENE SOM MANGLER I DIN VERSJON: -->
                 <div class="stat-box">LEVEL: <span id="ui-level" style="color:#00f3ff">1</span></div>
                 <div class="stat-box">WAVE: <span id="ui-wave">1</span>/10</div>
-                
                 <div class="stat-box small">SCORE: <span id="ui-score">0</span></div>
             </div>
 
-            <!-- Miner Control -->
             <div id="miner-panel" onclick="game.openMinerUpgrade()">
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
@@ -41,16 +34,21 @@
                 <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE</div>
             </div>
 
-            <!-- Toolbar -->
             <div id="toolbar"></div>
+        </div>
+
+        <!-- START SCREEN (NY) -->
+        <div id="start-screen" class="overlay-screen">
+            <!-- Tittelen er ofte del av bildet, men vi kan ha tekst over også -->
+            <h1 class="main-title">NEON DEFENSE</h1>
+            <p class="subtitle">MATH PROTOCOL ACTIVATED</p>
+            <button class="btn-large" onclick="game.enterLobby()">INITIALIZE SYSTEM</button>
         </div>
 
         <!-- MATH TERMINAL -->
         <div id="math-terminal" class="hidden">
             <div class="terminal-window">
-                <div class="terminal-header">
-                    <span class="blink">>></span> SYSTEM OVERRIDE <span class="blink"><<</span>
-                </div>
+                <div class="terminal-header"><span class="blink">>></span> SYSTEM OVERRIDE <span class="blink"><<</span></div>
                 <div id="math-context">UPGRADING...</div>
                 <div id="math-progress">TASK 1 / 1</div>
                 <div class="math-display">
@@ -62,13 +60,11 @@
         </div>
 
         <!-- CONFIG OVERLAY -->
-        <div id="config-overlay" class="overlay-screen">
+        <div id="config-overlay" class="overlay-screen hidden">
             <h1 style="color:var(--neon-blue)">MISSION CONFIG</h1>
             <p style="font-size: 1rem; color:#aaa;">VELG GANGETABELLER FOR Å ØKE INNTEKTEN</p>
             <div id="table-selector"></div>
-            <div id="bonus-display">
-                YIELD MULTIPLIER: <span id="ui-multiplier" style="color:var(--neon-green)">x1.0</span>
-            </div>
+            <div id="bonus-display">YIELD MULTIPLIER: <span id="ui-multiplier" style="color:var(--neon-green)">x1.0</span></div>
             <button class="btn-large" onclick="game.closeConfig()">DEPLOY SYSTEM</button>
         </div>
 
@@ -85,7 +81,6 @@
         <div id="level-overlay" class="overlay-screen hidden">
             <h1 style="color:var(--neon-yellow)">LEVEL COMPLETE!</h1>
             <p>MOVING TO SECTOR <span id="next-level-num">2</span></p>
-            <p>Enemies are getting stronger...</p>
             <button class="btn-large" onclick="game.startNextLevel()">INITIATE JUMP</button>
         </div>
         
@@ -100,4 +95,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #23 -->
+<!-- Version: #24 -->
