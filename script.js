@@ -1,10 +1,10 @@
-/* Version: #24 */
+/* Version: #25 */
 /**
- * NEON DEFENSE: SCRIPT V24
- * Endringer: Fiender roterer nå i bevegelsesretningen.
+ * NEON DEFENSE: FINAL SCRIPT
+ * Inkluderer Start Screen logikk og full spill-loop.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V24 (ROTATION) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE FINAL ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -86,7 +86,7 @@ ASSETS.enemy_tank.src = 'assets/enemy_tank.png';
 
 // --- 3. GLOBAL STATE ---
 const state = {
-    gameState: 'CONFIG', 
+    gameState: 'START', // Ny start-tilstand
     money: CONFIG.STARTING_MONEY,
     lives: CONFIG.STARTING_LIVES,
     
@@ -155,13 +155,19 @@ function playSound(type) {
 // --- 5. CORE ENGINE ---
 const game = {
     init: () => {
-        game.loadLevel(1);
-        game.updateUI();
+        // Start i START-mode, ikke last level enda
         game.renderToolbar();
         game.renderTableSelector(); 
         
         requestAnimationFrame(game.loop);
         setInterval(game.minerTick, 1000); 
+    },
+
+    enterLobby: () => {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('ui-layer').classList.remove('hidden'); // Vis HUD
+        game.loadLevel(1);
+        game.openConfig(); // Gå til config
     },
 
     loadLevel: (lvlNum) => {
@@ -181,6 +187,7 @@ const game = {
     // --- CONFIG ---
     openConfig: () => {
         if (state.gameState === 'PLAYING') { alert("CANNOT RECONFIGURE DURING COMBAT!"); return; }
+        state.gameState = 'CONFIG';
         document.getElementById('config-overlay').classList.remove('hidden');
         document.getElementById('wave-overlay').classList.add('hidden'); 
         game.renderTableSelector();
@@ -189,8 +196,9 @@ const game = {
     closeConfig: () => {
         if (state.activeTables.length === 0) { alert("SELECT AT LEAST ONE DATA STREAM!"); return; }
         document.getElementById('config-overlay').classList.add('hidden');
-        if (state.gameState === 'CONFIG') state.gameState = 'LOBBY';
-        if (state.gameState === 'LOBBY') document.getElementById('wave-overlay').classList.remove('hidden');
+        state.gameState = 'LOBBY';
+        document.getElementById('wave-overlay').classList.remove('hidden');
+        game.updateUI();
     },
 
     renderTableSelector: () => {
@@ -756,4 +764,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #24 */
+/* Version: #25 */
