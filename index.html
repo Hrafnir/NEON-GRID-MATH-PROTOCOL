@@ -1,10 +1,10 @@
-<!-- Version: #14 -->
+<!-- Version: #15 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: WIDESCREEN</title>
+    <title>NEON DEFENSE: CUSTOMIZABLE</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
@@ -13,12 +13,15 @@
     <div id="scanlines"></div>
     
     <div id="game-container">
-        <!-- SPILL-LERRET (Økt størrelse) -->
+        <!-- SPILL-LERRET -->
         <canvas id="game-canvas" width="1100" height="750"></canvas>
 
         <!-- UI HUD -->
         <div id="ui-layer">
             <div class="top-bar">
+                <!-- Ny knapp for Konfigurasjon -->
+                <button id="btn-config" onclick="game.openConfig()">⚙ CONFIG</button>
+                
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
                 <div class="stat-box">WAVE: <span id="ui-wave">1</span></div>
@@ -26,7 +29,7 @@
                 <div class="stat-box small">HIGH: <span id="ui-high">0</span></div>
             </div>
 
-            <!-- Miner Control (Flyttet i CSS) -->
+            <!-- Miner Control -->
             <div id="miner-panel" onclick="game.openMinerUpgrade()">
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
@@ -56,11 +59,29 @@
             </div>
         </div>
 
+        <!-- CONFIG OVERLAY (Startskjerm / Meny) -->
+        <div id="config-overlay" class="overlay-screen">
+            <h1 style="color:var(--neon-blue)">MISSION CONFIG</h1>
+            <p style="font-size: 1rem; color:#aaa;">VELG GANGETABELLER FOR Å ØKE INNTEKTEN</p>
+            
+            <div id="table-selector">
+                <!-- Knapper 2-12 genereres her -->
+            </div>
+            
+            <div id="bonus-display">
+                YIELD MULTIPLIER: <span id="ui-multiplier" style="color:var(--neon-green)">x1.0</span>
+            </div>
+
+            <button class="btn-large" onclick="game.closeConfig()">DEPLOY SYSTEM</button>
+        </div>
+
         <!-- WAVE COMPLETE OVERLAY -->
-        <div id="wave-overlay" class="overlay-screen">
+        <div id="wave-overlay" class="overlay-screen hidden">
             <h1>WAVE COMPLETE</h1>
             <p>Score Bonus: <span id="wave-bonus" style="color:var(--neon-green)">0</span></p>
             <button class="btn-large" onclick="game.startNextWave()">START NEXT WAVE</button>
+            <br><br>
+            <button class="btn-small" onclick="game.openConfig()">CHANGE CONFIG</button>
         </div>
         
         <!-- GAME OVER OVERLAY -->
@@ -74,4 +95,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #14 -->
+<!-- Version: #15 -->
