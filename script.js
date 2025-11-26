@@ -1,10 +1,10 @@
-/* Version: #23 */
+/* Version: #24 */
 /**
- * NEON DEFENSE: SCRIPT V23
- * Fixes: Safety check in updateUI to prevent crashes if HTML is outdated.
+ * NEON DEFENSE: SCRIPT V24
+ * Endringer: Fiender roterer nå i bevegelsesretningen.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V23 (SAFE UI) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V24 (ROTATION) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -690,10 +690,23 @@ const game = {
         // Enemies
         for (let e of state.enemies) {
             let size = (e.type === 'tank') ? 70 : 50;
-            if(!game.drawSprite(ctx, ASSETS['enemy_' + e.type], e.x, e.y, size, size)) {
+            
+            // CALCULATE ROTATION
+            let path = state.currentMap.path;
+            let target = path[e.pathIdx + 1];
+            let angle = 0;
+            if (target) {
+                let dx = target.x - e.x;
+                let dy = target.y - e.y;
+                angle = Math.atan2(dy, dx);
+            }
+
+            if(!game.drawSprite(ctx, ASSETS['enemy_' + e.type], e.x, e.y, size, size, angle)) {
                  ctx.fillStyle = e.type === 'fast' ? "orange" : (e.type === 'tank' ? "purple" : "red");
                  ctx.beginPath(); ctx.arc(e.x, e.y, 18, 0, Math.PI*2); ctx.fill();
             }
+            
+            // HP Bar
             ctx.fillStyle = "red"; ctx.fillRect(e.x - 20, e.y - 35, 40, 6);
             ctx.fillStyle = "#0aff00"; ctx.fillRect(e.x - 20, e.y - 35, 40 * (e.hp / e.maxHp), 6);
         }
@@ -743,4 +756,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #23 */
+/* Version: #24 */
