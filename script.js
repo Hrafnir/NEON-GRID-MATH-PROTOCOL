@@ -1,10 +1,10 @@
-/* Version: #18 */
+/* Version: #19 */
 /**
- * NEON DEFENSE: GRAPHICS UPDATE - SCRIPT
- * Inkluderer bilde-innlasting, sprite-rotasjon og fiende-variasjoner.
+ * NEON DEFENSE: SCRIPT V19
+ * Endringer: Spawn Queue system for miksede bølger.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V18 (GRAPHICS) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V19 (MIXED WAVES) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -13,12 +13,8 @@ const CONFIG = {
     MINER_BASE_RATE: 2, 
     
     UNLOCK_COSTS: {
-        'blaster': 0, 
-        'trap': 2,
-        'sniper': 4,
-        'cryo': 6,
-        'cannon': 8,
-        'tesla': 12
+        'blaster': 0, 'trap': 2, 'sniper': 4,
+        'cryo': 6, 'cannon': 8, 'tesla': 12
     }
 };
 
@@ -33,36 +29,22 @@ const TOWERS = {
 
 // --- 2. ASSETS LOADER ---
 const ASSETS = {
-    base: new Image(),
-    core: new Image(),
-    miner: new Image(),
-    
-    // Towers
-    blaster: new Image(),
-    sniper: new Image(),
-    cryo: new Image(),
-    cannon: new Image(),
-    tesla: new Image(),
-    trap: new Image(),
-    
-    // Enemies
-    enemy_basic: new Image(),
-    enemy_fast: new Image(),
-    enemy_tank: new Image()
+    base: new Image(), core: new Image(), miner: new Image(),
+    blaster: new Image(), sniper: new Image(), cryo: new Image(),
+    cannon: new Image(), tesla: new Image(), trap: new Image(),
+    enemy_basic: new Image(), enemy_fast: new Image(), enemy_tank: new Image()
 };
 
-// Angi filstier
+// Last inn bilder (pass på at filnavnene stemmer med mappen din)
 ASSETS.base.src = 'assets/tower_base.png';
 ASSETS.core.src = 'assets/core.png';
 ASSETS.miner.src = 'assets/miner.png';
-
 ASSETS.blaster.src = 'assets/tower_blaster.png';
 ASSETS.sniper.src = 'assets/tower_sniper.png';
 ASSETS.cryo.src = 'assets/tower_cryo.png';
 ASSETS.cannon.src = 'assets/tower_cannon.png';
 ASSETS.tesla.src = 'assets/tower_tesla.png';
 ASSETS.trap.src = 'assets/tower_trap.png';
-
 ASSETS.enemy_basic.src = 'assets/enemy_basic.png';
 ASSETS.enemy_fast.src = 'assets/enemy_fast.png';
 ASSETS.enemy_tank.src = 'assets/enemy_tank.png';
@@ -76,10 +58,8 @@ const state = {
     score: 0,
     highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
     
-    // Config
     activeTables: [2, 3, 4, 5, 10], 
     yieldMultiplier: 1.0,
-    
     minerLvl: 1,
     
     towers: [],
@@ -91,13 +71,11 @@ const state = {
     unlockedTowers: ['blaster'],
     selectedBlueprint: null, 
     
-    enemiesToSpawn: 0,
+    // NYTT: Spawn Queue
+    spawnQueue: [], // Liste over fiender som skal spawne denne runden
     spawnTimer: null,
     
-    mathTask: {
-        active: false,
-        type: null, target: null, remaining: 0, total: 0, answer: 0
-    }
+    mathTask: { active: false, type: null, target: null, remaining: 0, total: 0, answer: 0 }
 };
 
 // --- 4. AUDIO ENGINE ---
@@ -142,7 +120,7 @@ const game = {
             {x:-50, y:140}, {x:850, y:140}, 
             {x:850, y:280}, {x:150, y:280}, 
             {x:150, y:420}, {x:850, y:420}, 
-            {x:850, y:560}, {x:50, y:560} // Core location
+            {x:850, y:560}, {x:50, y:560}
         ];
         
         game.updateUI();
@@ -217,33 +195,67 @@ const game = {
         game.startMathTask('UPGRADE_MINER', null, tasks, `OPPGRADER MINER TIL LVL ${state.minerLvl + 1}`);
     },
 
-    // --- WAVE ---
+    // --- WAVE LOGIC (SPAWN POOL) ---
+    
+    // Hjelpefunksjon for å stokke listen (Fisher-Yates)
+    shuffle: (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    },
+
+    generateWavePool: (wave) => {
+        let pool = [];
+        let total = 12 + (wave * 4); // Totalt antall fiender
+        
+        // Bestem antall av hver type
+        let numFast = 0;
+        let numTank = 0;
+
+        if (wave === 2) numFast = 1; // Wave 2: Minst én rask
+        else if (wave >= 3) numFast = Math.floor(total * 0.2); // 20% raske
+        
+        if (wave >= 6) numTank = Math.floor(total * 0.15); // 15% tanks fra wave 6
+
+        let numBasic = total - numFast - numTank;
+
+        // Fyll listen
+        for(let i=0; i<numBasic; i++) pool.push('basic');
+        for(let i=0; i<numFast; i++) pool.push('fast');
+        for(let i=0; i<numTank; i++) pool.push('tank');
+
+        // Stokk listen godt
+        return game.shuffle(pool);
+    },
+
     startNextWave: () => {
         state.wave++;
         state.gameState = 'PLAYING';
         document.querySelectorAll('.overlay-screen').forEach(el => el.classList.add('hidden'));
         
-        let count = 12 + (state.wave * 4);
-        let hp = 60 + (state.wave * 35);
-        let speed = 0.8 + (state.wave * 0.15);
+        // Generer Spawn Queue
+        state.spawnQueue = game.generateWavePool(state.wave);
         
-        state.enemiesToSpawn = count;
+        // Base stats for bølgen
+        let hpBase = 60 + (state.wave * 35);
+        let speedBase = 0.8 + (state.wave * 0.15);
+        
         playSound('wave_start');
-        console.log(`Wave ${state.wave}: Count=${count}, HP=${hp}, Speed=${speed.toFixed(2)}`);
+        console.log(`Wave ${state.wave}: ${state.spawnQueue.length} enemies. Pool:`, state.spawnQueue);
 
         if (state.spawnTimer) clearInterval(state.spawnTimer);
         state.spawnTimer = setInterval(() => {
             if (state.gameState !== 'PLAYING') return;
             
-            if (state.enemiesToSpawn > 0) {
-                // VELG FIENDE TYPE
-                let type = 'basic';
-                if (state.wave >= 4 && Math.random() > 0.7) type = 'fast';
-                if (state.wave >= 7 && Math.random() > 0.8) type = 'tank';
+            // Hent neste fiende fra køen
+            if (state.spawnQueue.length > 0) {
+                const type = state.spawnQueue.pop(); // Tar siste (eller første) fra stokket liste
                 
                 // Juster stats basert på type
-                let eHp = hp;
-                let eSpeed = speed;
+                let eHp = hpBase;
+                let eSpeed = speedBase;
                 
                 if (type === 'fast') { eHp *= 0.6; eSpeed *= 1.5; }
                 if (type === 'tank') { eHp *= 2.5; eSpeed *= 0.6; }
@@ -252,7 +264,6 @@ const game = {
                     x: state.mapPath[0].x, y: state.mapPath[0].y, pathIdx: 0,
                     hp: eHp, maxHp: eHp, speed: eSpeed, frozen: 0, type: type
                 });
-                state.enemiesToSpawn--;
             } else {
                 clearInterval(state.spawnTimer);
             }
@@ -262,7 +273,8 @@ const game = {
     },
 
     checkWaveEnd: () => {
-        if (state.enemiesToSpawn <= 0 && state.enemies.length === 0 && state.gameState === 'PLAYING') {
+        // Sjekk om køen er tom OG ingen fiender på banen
+        if (state.spawnQueue.length === 0 && state.enemies.length === 0 && state.gameState === 'PLAYING') {
             game.waveComplete();
         }
     },
@@ -414,7 +426,7 @@ const game = {
     buildTower: (x, y, type) => {
         const data = TOWERS[type];
         for (let t of state.towers) {
-            if (Math.hypot(x - t.x, y - t.y) < 50) return; // Plass sjekk
+            if (Math.hypot(x - t.x, y - t.y) < 50) return; 
         }
         
         if (state.money >= data.cost) {
@@ -562,7 +574,6 @@ const game = {
         const ctx = document.getElementById('game-canvas').getContext('2d');
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1100, 750);
         
-        // Draw Core & Miner (Decoration)
         if(ASSETS.core.complete) ctx.drawImage(ASSETS.core, 20, 530, 60, 60);
         if(ASSETS.miner.complete) ctx.drawImage(ASSETS.miner, 950, 50, 60, 60);
 
@@ -579,27 +590,15 @@ const game = {
             
             if (t.type === 'trap') {
                 if(ASSETS.trap.complete) ctx.drawImage(ASSETS.trap, -20, -20, 40, 40);
-                else {
-                    // Fallback
-                    ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
-                }
+                else { ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill(); }
             } else {
-                // Base
                 if(ASSETS.base.complete) ctx.drawImage(ASSETS.base, -25, -25, 50, 50);
-                
-                // Turret
                 ctx.rotate(t.angle);
-                if (t.type === 'sniper') ctx.rotate(Math.PI); // Fix left-pointing sprite
-                
+                if (t.type === 'sniper') ctx.rotate(Math.PI); 
                 let img = ASSETS[TOWERS[t.type].img];
                 if(img && img.complete) ctx.drawImage(img, -25, -25, 50, 50);
-                else {
-                    // Fallback
-                    ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10);
-                }
+                else { ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10); }
             }
-            
-            // Level Badge
             ctx.restore();
             ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.fillText("v"+t.level, t.x-6, t.y+5);
         }
@@ -608,23 +607,15 @@ const game = {
         for (let e of state.enemies) {
             ctx.save();
             ctx.translate(e.x, e.y);
-            
-            // Roter fiende mot bevegelsesretning (valgfritt, men ser kulere ut)
-            // Vi må finne vinkelen basert på path. Enkelt her:
-            // (Foreløpig ingen rotasjon på fiender, de er top-down bugs)
-            
             let img = ASSETS['enemy_' + e.type];
             if(img && img.complete) {
-                // Tegn bilde
                 let size = (e.type === 'tank') ? 50 : 30;
                 ctx.drawImage(img, -size/2, -size/2, size, size);
             } else {
                 ctx.fillStyle = e.type === 'fast' ? "orange" : (e.type === 'tank' ? "purple" : "red");
                 ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
             }
-            
             ctx.restore();
-            
             // HP Bar
             ctx.fillStyle = "red"; ctx.fillRect(e.x - 15, e.y - 25, 30, 4);
             ctx.fillStyle = "#0aff00"; ctx.fillRect(e.x - 15, e.y - 25, 30 * (e.hp / e.maxHp), 4);
@@ -648,7 +639,6 @@ const game = {
         document.getElementById('ui-score').innerText = state.score;
         document.getElementById('ui-high').innerText = state.highScore;
         document.getElementById('miner-lvl').innerText = state.minerLvl;
-        
         let rate = (CONFIG.MINER_BASE_RATE * state.minerLvl * state.yieldMultiplier).toFixed(1);
         document.getElementById('miner-rate').innerText = rate;
     }
@@ -664,9 +654,8 @@ function updateParticles() {
     }
 }
 
-// --- EVENTS ---
 document.getElementById('game-canvas').addEventListener('mousedown', game.handleCanvasClick);
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #18 */
+/* Version: #19 */
