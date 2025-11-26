@@ -1,4 +1,4 @@
-<!-- Version: #24 -->
+<!-- Version: #25 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
@@ -16,7 +16,15 @@
     <div id="game-container">
         <canvas id="game-canvas" width="1280" height="800"></canvas>
 
-        <!-- UI HUD -->
+        <!-- START SCREEN (Synlig ved start) -->
+        <div id="start-screen" class="overlay-screen" style="z-index: 500;">
+            <h1 class="main-title">NEON DEFENSE</h1>
+            <p class="subtitle">MATH PROTOCOL ACTIVATED</p>
+            <br><br>
+            <button class="btn-large" onclick="game.enterLobby()">INITIALIZE SYSTEM</button>
+        </div>
+
+        <!-- UI HUD (Skjult ved start) -->
         <div id="ui-layer" class="hidden">
             <div class="top-bar">
                 <button id="btn-config" onclick="game.openConfig()">⚙ CONFIG</button>
@@ -37,14 +45,6 @@
             <div id="toolbar"></div>
         </div>
 
-        <!-- START SCREEN (NY) -->
-        <div id="start-screen" class="overlay-screen">
-            <!-- Tittelen er ofte del av bildet, men vi kan ha tekst over også -->
-            <h1 class="main-title">NEON DEFENSE</h1>
-            <p class="subtitle">MATH PROTOCOL ACTIVATED</p>
-            <button class="btn-large" onclick="game.enterLobby()">INITIALIZE SYSTEM</button>
-        </div>
-
         <!-- MATH TERMINAL -->
         <div id="math-terminal" class="hidden">
             <div class="terminal-window">
@@ -59,7 +59,7 @@
             </div>
         </div>
 
-        <!-- CONFIG OVERLAY -->
+        <!-- CONFIG OVERLAY (Menyen man kommer til etter start) -->
         <div id="config-overlay" class="overlay-screen hidden">
             <h1 style="color:var(--neon-blue)">MISSION CONFIG</h1>
             <p style="font-size: 1rem; color:#aaa;">VELG GANGETABELLER FOR Å ØKE INNTEKTEN</p>
@@ -95,4 +95,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #24 -->
+<!-- Version: #25 -->
