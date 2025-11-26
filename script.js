@@ -1,10 +1,10 @@
-/* Version: #14 */
+/* Version: #17 */
 /**
- * NEON DEFENSE: REALTIME - SCRIPT
- * Justert for Widescreen (1100x750) og bedre UI-plassering.
+ * NEON DEFENSE: CONFIGURABLE - SCRIPT
+ * Inneholder: Game Loop, Math Terminal, Wave Management, Scoring, Mission Config.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V14 (WIDESCREEN) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V17 (CONFIG) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -33,12 +33,16 @@ const TOWERS = {
 
 // --- 2. GLOBAL STATE ---
 const state = {
-    gameState: 'LOBBY', 
+    gameState: 'CONFIG', // Starter i Config-modus
     money: CONFIG.STARTING_MONEY,
     lives: CONFIG.STARTING_LIVES,
     wave: 0,
     score: 0,
     highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
+    
+    // Config State
+    activeTables: [2, 3, 4, 5, 10], // Standard utvalg
+    yieldMultiplier: 1.0,
     
     minerLvl: 1,
     
@@ -93,34 +97,110 @@ function playSound(type) {
         osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50, now); osc.frequency.linearRampToValueAtTime(10, now+0.4);
         gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now+0.4);
         osc.start(now); osc.stop(now+0.4);
+    } else if (type === 'click') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); 
+        gain.gain.setValueAtTime(0.05, now); osc.start(now); osc.stop(now+0.05);
     }
 }
 
 // --- 4. CORE ENGINE ---
 const game = {
     init: () => {
-        // NY STIL: Holder seg unna bunnen (Toolbar) og høyre kant (Miner)
-        // Canvas er 1100x750. Toolbar er bunn ~120px. Miner er Høyre ~200px.
         state.mapPath = [
             {x:-20, y:140}, {x:850, y:140}, 
             {x:850, y:280}, {x:150, y:280}, 
             {x:150, y:420}, {x:850, y:420}, 
-            {x:850, y:560}, {x:-20, y:560} // Slutter på venstre side, høyt nok over toolbar
+            {x:850, y:560}, {x:-20, y:560}
         ];
         
         game.updateUI();
         game.renderToolbar();
+        game.renderTableSelector(); // Generer knapper for config
         
-        document.getElementById('wave-bonus').innerText = "0";
-        document.getElementById('wave-overlay').classList.remove('hidden');
-        
+        // Start Loops
         requestAnimationFrame(game.loop);
         setInterval(game.minerTick, 1000); 
     },
 
+    // --- CONFIG LOGIC ---
+    openConfig: () => {
+        if (state.gameState === 'PLAYING') {
+            alert("CANNOT RECONFIGURE DURING COMBAT!");
+            return;
+        }
+        document.getElementById('config-overlay').classList.remove('hidden');
+        document.getElementById('wave-overlay').classList.add('hidden'); // Skjul wave overlay hvis den er der
+        game.renderTableSelector();
+    },
+
+    closeConfig: () => {
+        if (state.activeTables.length === 0) {
+            alert("SELECT AT LEAST ONE DATA STREAM!");
+            return;
+        }
+        document.getElementById('config-overlay').classList.add('hidden');
+        // Hvis vi kom fra Lobby (starten), gå til Lobby.
+        if (state.gameState === 'CONFIG') state.gameState = 'LOBBY';
+        
+        // Vis Wave overlay hvis vi ikke spiller
+        if (state.gameState === 'LOBBY') {
+            document.getElementById('wave-overlay').classList.remove('hidden');
+        }
+    },
+
+    renderTableSelector: () => {
+        const container = document.getElementById('table-selector');
+        container.innerHTML = "";
+        
+        for (let i = 2; i <= 12; i++) {
+            const btn = document.createElement('div');
+            const isActive = state.activeTables.includes(i);
+            btn.className = `table-btn ${isActive ? 'active' : ''}`;
+            btn.innerText = i;
+            btn.onclick = () => game.toggleTable(i);
+            container.appendChild(btn);
+        }
+        game.calcMultiplier();
+    },
+
+    toggleTable: (num) => {
+        playSound('click');
+        const idx = state.activeTables.indexOf(num);
+        if (idx > -1) {
+            state.activeTables.splice(idx, 1);
+        } else {
+            state.activeTables.push(num);
+        }
+        game.renderTableSelector();
+    },
+
+    calcMultiplier: () => {
+        const count = state.activeTables.length;
+        // Formel: 1.0 + 0.1 per tabell utover den første.
+        // 1 tabell = 1.0. 11 tabeller = 2.0.
+        let mult = 1.0;
+        if (count > 1) {
+            mult += (count - 1) * 0.1;
+        }
+        state.yieldMultiplier = parseFloat(mult.toFixed(1));
+        
+        const el = document.getElementById('ui-multiplier');
+        el.innerText = "x" + state.yieldMultiplier;
+        
+        // Fargekode
+        if (state.yieldMultiplier >= 2.0) el.style.color = "#0aff00"; // Max
+        else if (state.yieldMultiplier >= 1.5) el.style.color = "#ffee00"; // Medium
+        else el.style.color = "#fff"; // Low
+    },
+
+    // --- MINER LOGIC ---
     minerTick: () => {
         if (state.gameState !== 'PLAYING') return; 
-        const income = CONFIG.MINER_BASE_RATE * state.minerLvl;
+        
+        // Base * Level * Yield Multiplier
+        let income = CONFIG.MINER_BASE_RATE * state.minerLvl;
+        income *= state.yieldMultiplier;
+        
         state.money += income;
         game.updateUI();
     },
@@ -131,6 +211,7 @@ const game = {
         game.startMathTask('UPGRADE_MINER', null, tasks, `OPPGRADER MINER TIL LVL ${state.minerLvl + 1}`);
     },
 
+    // --- WAVE LOGIC ---
     startNextWave: () => {
         state.wave++;
         state.gameState = 'PLAYING';
@@ -210,9 +291,11 @@ const game = {
     },
 
     nextQuestion: () => {
-        const difficulty = Math.min(12, 2 + Math.floor(state.wave / 3)); 
-        const a = Math.floor(Math.random() * 11) + 2; 
-        const b = Math.floor(Math.random() * (9 + difficulty)) + 2;  
+        // Velg tilfeldig tabell fra de aktive
+        if (state.activeTables.length === 0) state.activeTables = [2]; // Fallback
+        
+        const a = state.activeTables[Math.floor(Math.random() * state.activeTables.length)];
+        const b = Math.floor(Math.random() * 11) + 2; // 2-12
         
         state.mathTask.answer = a * b;
         document.getElementById('math-question').innerText = `${a} x ${b}`;
@@ -462,7 +545,11 @@ const game = {
             const idx = state.enemies.indexOf(e);
             if (idx > -1) {
                 state.enemies.splice(idx, 1);
-                state.money += 7;
+                
+                // KILL REWARD MED MULTIPLIER
+                let reward = 7 * state.yieldMultiplier;
+                state.money += reward;
+                
                 state.score += 10;
                 game.checkHighScore();
                 game.updateUI();
@@ -474,7 +561,6 @@ const game = {
 
     draw: () => {
         const ctx = document.getElementById('game-canvas').getContext('2d');
-        // OPPDATERT: Bruker 1100x750 nå
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1100, 750);
         
         // Path
@@ -527,7 +613,10 @@ const game = {
         document.getElementById('ui-score').innerText = state.score;
         document.getElementById('ui-high').innerText = state.highScore;
         document.getElementById('miner-lvl').innerText = state.minerLvl;
-        document.getElementById('miner-rate').innerText = CONFIG.MINER_BASE_RATE * state.minerLvl;
+        
+        // Miner rate med multiplier visning
+        let rate = (CONFIG.MINER_BASE_RATE * state.minerLvl * state.yieldMultiplier).toFixed(1);
+        document.getElementById('miner-rate').innerText = rate;
     }
 };
 
@@ -546,4 +635,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #14 */
+/* Version: #17 */
