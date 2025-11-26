@@ -1,10 +1,10 @@
-/* Version: #25 */
+/* Version: #26 */
 /**
- * NEON DEFENSE: FINAL SCRIPT
- * Inkluderer Start Screen logikk og full spill-loop.
+ * NEON DEFENSE: FLOW UPDATE
+ * Endringer: Startskjerm -> Config -> Spill.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE FINAL ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V26 (FLOW) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -86,7 +86,7 @@ ASSETS.enemy_tank.src = 'assets/enemy_tank.png';
 
 // --- 3. GLOBAL STATE ---
 const state = {
-    gameState: 'START', // Ny start-tilstand
+    gameState: 'START', // Starter i START-modus
     money: CONFIG.STARTING_MONEY,
     lives: CONFIG.STARTING_LIVES,
     
@@ -155,19 +155,21 @@ function playSound(type) {
 // --- 5. CORE ENGINE ---
 const game = {
     init: () => {
-        // Start i START-mode, ikke last level enda
-        game.renderToolbar();
-        game.renderTableSelector(); 
+        // Sørg for at UI er skjult ved start
+        document.getElementById('ui-layer').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
         
         requestAnimationFrame(game.loop);
         setInterval(game.minerTick, 1000); 
     },
 
     enterLobby: () => {
+        // Gå fra Startskjerm til Config
         document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('ui-layer').classList.remove('hidden'); // Vis HUD
+        document.getElementById('ui-layer').classList.remove('hidden');
+        
         game.loadLevel(1);
-        game.openConfig(); // Gå til config
+        game.openConfig(); // Hopper rett til config
     },
 
     loadLevel: (lvlNum) => {
@@ -187,17 +189,21 @@ const game = {
     // --- CONFIG ---
     openConfig: () => {
         if (state.gameState === 'PLAYING') { alert("CANNOT RECONFIGURE DURING COMBAT!"); return; }
+        
         state.gameState = 'CONFIG';
         document.getElementById('config-overlay').classList.remove('hidden');
         document.getElementById('wave-overlay').classList.add('hidden'); 
+        
         game.renderTableSelector();
     },
 
     closeConfig: () => {
         if (state.activeTables.length === 0) { alert("SELECT AT LEAST ONE DATA STREAM!"); return; }
+        
         document.getElementById('config-overlay').classList.add('hidden');
         state.gameState = 'LOBBY';
         document.getElementById('wave-overlay').classList.remove('hidden');
+        
         game.updateUI();
     },
 
@@ -764,4 +770,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #25 */
+/* Version: #26 */
