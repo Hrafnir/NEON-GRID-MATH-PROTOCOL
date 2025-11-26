@@ -1,14 +1,14 @@
-/* Version: #22 */
+/* Version: #23 */
 /**
- * NEON DEFENSE: LEVELS & MAPS
- * Endringer: 1280x800, Level System (10 waves), Multiple Maps.
+ * NEON DEFENSE: SCRIPT V23
+ * Fixes: Safety check in updateUI to prevent crashes if HTML is outdated.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V22 (LEVELS) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V23 (SAFE UI) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
-    STARTING_MONEY: 200, // Litt mer startpenger siden brettene er større
+    STARTING_MONEY: 200, 
     STARTING_LIVES: 20,
     MINER_BASE_RATE: 2,
     WAVES_PER_LEVEL: 10,
@@ -30,14 +30,14 @@ const LEVEL_MAPS = [
             {x:1000, y:700}, {x:50, y:700}
         ],
         core: {x: 50, y: 700},
-        miner: {x: 1150, y: 100} // Høyre hjørne
+        miner: {x: 1150, y: 100} 
     },
     // Level 2: The Siege (U-Turn)
     {
         path: [
             {x:50, y:-50}, {x:50, y:650}, 
             {x:1230, y:650}, {x:1230, y:150}, 
-            {x:300, y:150}, {x:300, y:400}, {x:640, y:400} // Core i midten
+            {x:300, y:150}, {x:300, y:400}, {x:640, y:400} 
         ],
         core: {x: 640, y: 400},
         miner: {x: 1100, y: 700}
@@ -49,7 +49,7 @@ const LEVEL_MAPS = [
             {x:600, y:700}, {x:600, y:100}, {x:900, y:100}, 
             {x:900, y:700}, {x:1200, y:700}, {x:1200, y:400}, {x:1350, y:400}
         ],
-        core: {x: 1300, y: 400}, // Ut høyre side
+        core: {x: 1300, y: 400}, 
         miner: {x: 100, y: 700}
     }
 ];
@@ -91,8 +91,8 @@ const state = {
     lives: CONFIG.STARTING_LIVES,
     
     level: 1,
-    waveTotal: 0, // Totalt antall waves spilt
-    waveInLevel: 0, // 1-10
+    waveTotal: 0, 
+    waveInLevel: 0, 
     
     score: 0,
     highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
@@ -106,7 +106,6 @@ const state = {
     projectiles: [],
     particles: [],
     
-    // Map data
     currentMap: LEVEL_MAPS[0],
     
     unlockedTowers: ['blaster'],
@@ -168,11 +167,9 @@ const game = {
     loadLevel: (lvlNum) => {
         state.level = lvlNum;
         state.waveInLevel = 0;
-        // Velg kart (loop hvis vi går over 3)
         let mapIdx = (lvlNum - 1) % LEVEL_MAPS.length;
         state.currentMap = LEVEL_MAPS[mapIdx];
         
-        // Reset board for new level
         state.towers = [];
         state.enemies = [];
         state.projectiles = [];
@@ -256,7 +253,6 @@ const game = {
 
     generateWavePool: (waveTotal) => {
         let pool = [];
-        // Øk vanskelighetsgrad basert på totalt antall waves
         let total = 12 + (waveTotal * 2); 
         
         let numFast = 0;
@@ -274,7 +270,6 @@ const game = {
     },
 
     startNextWave: () => {
-        // Sjekk om Level er ferdig
         if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
             game.levelComplete();
             return;
@@ -287,7 +282,6 @@ const game = {
         
         state.spawnQueue = game.generateWavePool(state.waveTotal);
         
-        // Scaling Difficulty
         let hpBase = 60 + (state.waveTotal * 40);
         let speedBase = 0.8 + (state.waveTotal * 0.1);
         
@@ -334,11 +328,9 @@ const game = {
         game.checkHighScore();
         
         if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
-            // Level Complete Screen
             document.getElementById('next-level-num').innerText = state.level + 1;
             document.getElementById('level-overlay').classList.remove('hidden');
         } else {
-            // Normal Wave Complete
             document.getElementById('wave-title').innerText = "WAVE COMPLETE";
             document.getElementById('wave-bonus').innerText = bonus;
             document.getElementById('wave-overlay').classList.remove('hidden');
@@ -349,8 +341,7 @@ const game = {
     },
     
     levelComplete: () => {
-        // Trigges av knappen i overlay
-        // Ingenting her, logikken ligger i startNextLevel
+        // Handled by overlay button
     },
     
     startNextLevel: () => {
@@ -660,7 +651,7 @@ const game = {
         const ctx = document.getElementById('game-canvas').getContext('2d');
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1280, 800);
         
-        // Decor (Dynamisk posisjon basert på kart)
+        // Decor
         let corePos = state.currentMap.core;
         let minerPos = state.currentMap.miner;
         game.drawSprite(ctx, ASSETS.core, corePos.x, corePos.y, 100, 100);
@@ -718,16 +709,23 @@ const game = {
         }
     },
 
+    // --- UI HELPER (SAFE) ---
     updateUI: () => {
-        document.getElementById('ui-bits').innerText = Math.floor(state.money);
-        document.getElementById('ui-lives').innerText = state.lives;
-        document.getElementById('ui-level').innerText = state.level;
-        document.getElementById('ui-wave').innerText = state.waveInLevel;
-        document.getElementById('ui-score').innerText = state.score;
-        document.getElementById('ui-high').innerText = state.highScore;
-        document.getElementById('miner-lvl').innerText = state.minerLvl;
-        let rate = (CONFIG.MINER_BASE_RATE * state.minerLvl * state.yieldMultiplier).toFixed(1);
-        document.getElementById('miner-rate').innerText = rate;
+        try {
+            if(document.getElementById('ui-bits')) document.getElementById('ui-bits').innerText = Math.floor(state.money);
+            if(document.getElementById('ui-lives')) document.getElementById('ui-lives').innerText = state.lives;
+            if(document.getElementById('ui-level')) document.getElementById('ui-level').innerText = state.level;
+            if(document.getElementById('ui-wave')) document.getElementById('ui-wave').innerText = state.waveInLevel;
+            if(document.getElementById('ui-score')) document.getElementById('ui-score').innerText = state.score;
+            if(document.getElementById('ui-high')) document.getElementById('ui-high').innerText = state.highScore;
+            if(document.getElementById('miner-lvl')) document.getElementById('miner-lvl').innerText = state.minerLvl;
+            if(document.getElementById('miner-rate')) {
+                let rate = (CONFIG.MINER_BASE_RATE * state.minerLvl * state.yieldMultiplier).toFixed(1);
+                document.getElementById('miner-rate').innerText = rate;
+            }
+        } catch (e) {
+            console.warn("UI Update failed (HTML mismatch?)", e);
+        }
     }
 };
 
@@ -745,4 +743,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #22 */
+/* Version: #23 */
