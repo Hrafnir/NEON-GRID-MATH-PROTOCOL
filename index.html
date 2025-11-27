@@ -1,10 +1,10 @@
-<!-- Version: #25 -->
+<!-- Version: #26 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: FINAL</title>
+    <title>NEON DEFENSE: TACTICAL</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="icon" href="data:,">
@@ -16,40 +16,60 @@
     <div id="game-container">
         <canvas id="game-canvas" width="1280" height="800"></canvas>
 
-        <!-- START SCREEN (Synlig ved start) -->
+        <!-- START SCREEN -->
         <div id="start-screen" class="overlay-screen" style="z-index: 500;">
             <h1 class="main-title">NEON DEFENSE</h1>
-            <p class="subtitle">MATH PROTOCOL ACTIVATED</p>
+            <p class="subtitle">TACTICAL MATH PROTOCOL</p>
             <br><br>
             <button class="btn-large" onclick="game.enterLobby()">INITIALIZE SYSTEM</button>
         </div>
 
-        <!-- UI HUD (Skjult ved start) -->
+        <!-- UI HUD -->
         <div id="ui-layer" class="hidden">
             <div class="top-bar">
-                <button id="btn-config" onclick="game.openConfig()">⚙ CONFIG</button>
+                <button id="btn-research" onclick="game.openResearch()">🧪 RESEARCH (BITS)</button>
+                
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
                 <div class="stat-box">LEVEL: <span id="ui-level" style="color:#00f3ff">1</span></div>
                 <div class="stat-box">WAVE: <span id="ui-wave">1</span>/10</div>
-                <div class="stat-box small">SCORE: <span id="ui-score">0</span></div>
             </div>
 
+            <!-- Miner (Passiv inntekt av Bits) -->
             <div id="miner-panel" onclick="game.openMinerUpgrade()">
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
                 <div class="panel-stat">Rate: <span id="miner-rate">5</span>/s</div>
-                <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE</div>
+                <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE (MATTE)</div>
             </div>
-
-            <div id="toolbar"></div>
         </div>
 
-        <!-- MATH TERMINAL -->
+        <!-- TURRET CONTROL MENU (Pauser spillet) -->
+        <div id="turret-menu" class="hidden">
+            <div class="menu-header">PLATFORM CONTROL</div>
+            <div id="turret-stats">
+                <!-- Fylles av JS: "Current: Blaster Lvl 1 - Dmg: 10" -->
+            </div>
+            <div class="menu-grid" id="turret-options">
+                <!-- Knapper for Build/Upgrade/Swap genereres her -->
+            </div>
+            <button class="btn-cancel" onclick="game.closeTurretMenu()">CLOSE</button>
+        </div>
+
+        <!-- RESEARCH OVERLAY (Bruke Bits) -->
+        <div id="research-overlay" class="overlay-screen hidden">
+            <h1 style="color:var(--neon-blue)">BLUEPRINT RESEARCH</h1>
+            <p>BRUK BITS TIL Å LÅSE OPP NYE TÅRNTYPER</p>
+            <div id="research-grid" class="menu-grid"></div>
+            <br>
+            <button class="btn-large" onclick="game.closeResearch()">RETURN TO BATTLE</button>
+        </div>
+
+        <!-- MATH TERMINAL (Kjører i sanntid) -->
         <div id="math-terminal" class="hidden">
             <div class="terminal-window">
-                <div class="terminal-header"><span class="blink">>></span> SYSTEM OVERRIDE <span class="blink"><<</span></div>
-                <div id="math-context">UPGRADING...</div>
+                <div class="terminal-header"><span class="blink">>></span> EXECUTING CODE <span class="blink"><<</span></div>
+                <div id="math-context">BUILDING TURRET...</div>
                 <div id="math-progress">TASK 1 / 1</div>
                 <div class="math-display">
                     <div id="math-question">2 x 4</div>
@@ -59,22 +79,11 @@
             </div>
         </div>
 
-        <!-- CONFIG OVERLAY (Menyen man kommer til etter start) -->
-        <div id="config-overlay" class="overlay-screen hidden">
-            <h1 style="color:var(--neon-blue)">MISSION CONFIG</h1>
-            <p style="font-size: 1rem; color:#aaa;">VELG GANGETABELLER FOR Å ØKE INNTEKTEN</p>
-            <div id="table-selector"></div>
-            <div id="bonus-display">YIELD MULTIPLIER: <span id="ui-multiplier" style="color:var(--neon-green)">x1.0</span></div>
-            <button class="btn-large" onclick="game.closeConfig()">DEPLOY SYSTEM</button>
-        </div>
-
         <!-- WAVE COMPLETE OVERLAY -->
         <div id="wave-overlay" class="overlay-screen hidden">
             <h1 id="wave-title">WAVE COMPLETE</h1>
             <p>Score Bonus: <span id="wave-bonus" style="color:var(--neon-green)">0</span></p>
             <button class="btn-large" onclick="game.startNextWave()">START NEXT WAVE</button>
-            <br><br>
-            <button class="btn-small" onclick="game.openConfig()">CHANGE CONFIG</button>
         </div>
         
         <!-- LEVEL COMPLETE OVERLAY -->
@@ -95,4 +104,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #25 -->
+<!-- Version: #26 -->
