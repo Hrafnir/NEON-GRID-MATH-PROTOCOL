@@ -1,10 +1,10 @@
-/* Version: #29 */
+/* Version: #30 */
 /**
- * NEON DEFENSE: BUGFIX UPDATE
- * Fixes: Missing Miner function, Platform click detection, State handling.
+ * NEON DEFENSE: STABILITY UPDATE
+ * Fixes: Re-added missing drawSprite function inside game object.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V29 (FIXED) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V30 (FINAL FIX) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -99,7 +99,7 @@ ASSETS.enemy_tank.src = 'assets/enemy_tank.png';
 // --- 3. GLOBAL STATE ---
 const state = {
     gameState: 'START', 
-    previousState: 'LOBBY', // Husker tilstand før menyer
+    previousState: 'LOBBY',
     money: CONFIG.STARTING_BITS,
     lives: CONFIG.STARTING_LIVES,
     level: 1, waveTotal: 0, waveInLevel: 0, 
@@ -165,10 +165,15 @@ const game = {
     openConfig: () => {
         if (state.gameState === 'PLAYING') { alert("COMBAT ACTIVE"); return; }
         state.gameState = 'CONFIG';
-        document.getElementById('config-overlay').classList.remove('hidden');
-        document.getElementById('wave-overlay').classList.add('hidden'); 
-        game.renderTableSelector();
+        const el = document.getElementById('config-overlay');
+        if(el) {
+            el.classList.remove('hidden');
+            game.renderTableSelector();
+        }
+        const wave = document.getElementById('wave-overlay');
+        if(wave) wave.classList.add('hidden');
     },
+
     closeConfig: () => {
         if (state.activeTables.length === 0) { alert("SELECT DATA STREAM!"); return; }
         document.getElementById('config-overlay').classList.add('hidden');
@@ -211,7 +216,6 @@ const game = {
         }
     },
 
-    // HER ER FUNKSJONEN SOM MANGLER I FORRIGE VERSJON:
     openMinerUpgrade: () => {
         if (state.gameState !== 'PLAYING' && state.gameState !== 'LOBBY') return;
         state.previousState = state.gameState;
@@ -266,23 +270,18 @@ const game = {
     
     closeTurretMenu: () => {
         document.getElementById('turret-menu').classList.add('hidden');
-        state.gameState = state.previousState; // Gå tilbake til Lobby eller Playing
+        state.gameState = state.previousState; 
     },
 
     triggerMathAction: (action, target, cost) => {
         document.getElementById('turret-menu').classList.add('hidden');
-        // Hvis vi var i Lobby, går vi til Playing midlertidig for matte, men tilbake til Lobby etterpå?
-        // Nei, intensjonen var at spillet kjører mens man regner.
-        // Så vi setter gameState til PLAYING midlertidig mens matten pågår, selv om bølgen ikke har startet.
-        // Men fiendene spawner ikke før bølgen starter uansett.
         state.gameState = 'PLAYING'; 
-        
         let text = "";
         if (action === 'BUILD') text = `BUILDING ${TOWERS[target.type].name}`;
         if (action === 'UPGRADE') text = `UPGRADING SYSTEM`;
         if (action === 'SWAP') text = `RECONFIGURING TURRET`;
         if (action === 'MINE') text = `PLACING PROXIMITY MINE`;
-        
+        if (action === 'MINER') text = `OVERCLOCKING MINER`;
         game.startMathTask(action, target, cost, text);
     },
 
@@ -368,7 +367,6 @@ const game = {
 
     completeMathTask: () => {
         const t = state.mathTask;
-        // Fix: Ensure 'MINER' matches what we send in openMinerUpgrade
         if (t.type === 'MINER') {
             state.minerLvl++;
         }
@@ -407,10 +405,7 @@ const game = {
             }
         }
         game.closeMath();
-        
-        // Return to previous state (Lobby or Playing)
         state.gameState = state.previousState;
-        
         game.updateUI();
     },
 
@@ -425,7 +420,7 @@ const game = {
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
-        // 1. Sjekk PLATTFORM (Tårn) - Økt radius til 50px
+        // 1. Sjekk PLATTFORM (Tårn) - Radius 50px
         for (let i = 0; i < state.platforms.length; i++) {
             const p = state.platforms[i];
             if (p.tower && p.tower.type === 'trap') continue;
@@ -437,7 +432,6 @@ const game = {
         }
 
         // 2. Sjekk LØYPE (Miner)
-        // Kun tillatt i PLAYING state for å unngå exploits i lobby
         if (state.gameState === 'PLAYING') {
             if (game.isPointOnPath(x, y)) {
                 state.previousState = state.gameState;
@@ -670,6 +664,20 @@ const game = {
         }
     },
 
+    // --- DRAW HELPER (THIS WAS MISSING!) ---
+    drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
+        if (img && img.complete && img.naturalWidth > 0) {
+            let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+            let newW = img.naturalWidth * scale;
+            let newH = img.naturalHeight * scale;
+            ctx.save(); ctx.translate(x, y); ctx.rotate(rotation);
+            ctx.drawImage(img, -newW/2, -newH/2, newW, newH);
+            ctx.restore();
+            return true;
+        }
+        return false;
+    },
+
     // --- UI HELPER ---
     updateUI: () => {
         try {
@@ -702,4 +710,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #29 */
+/* Version: #30 */
