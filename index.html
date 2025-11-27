@@ -1,4 +1,4 @@
-<!-- Version: #26 -->
+<!-- Version: #32 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
@@ -27,7 +27,8 @@
         <!-- UI HUD -->
         <div id="ui-layer" class="hidden">
             <div class="top-bar">
-                <button id="btn-research" onclick="game.openResearch()">🧪 RESEARCH (BITS)</button>
+                <button id="btn-research" onclick="game.openResearch()">🧪 RESEARCH</button>
+                <button id="btn-config" onclick="game.openConfig()">⚙ CONFIG</button>
                 
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
@@ -40,19 +41,15 @@
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
                 <div class="panel-stat">Rate: <span id="miner-rate">5</span>/s</div>
-                <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE (MATTE)</div>
+                <div class="upgrade-hint">KLIKK FOR Å OPPGRADERE</div>
             </div>
         </div>
 
         <!-- TURRET CONTROL MENU (Pauser spillet) -->
         <div id="turret-menu" class="hidden">
             <div class="menu-header">PLATFORM CONTROL</div>
-            <div id="turret-stats">
-                <!-- Fylles av JS: "Current: Blaster Lvl 1 - Dmg: 10" -->
-            </div>
-            <div class="menu-grid" id="turret-options">
-                <!-- Knapper for Build/Upgrade/Swap genereres her -->
-            </div>
+            <div id="turret-stats"></div>
+            <div class="menu-grid" id="turret-options"></div>
             <button class="btn-cancel" onclick="game.closeTurretMenu()">CLOSE</button>
         </div>
 
@@ -65,7 +62,18 @@
             <button class="btn-large" onclick="game.closeResearch()">RETURN TO BATTLE</button>
         </div>
 
-        <!-- MATH TERMINAL (Kjører i sanntid) -->
+        <!-- CONFIG OVERLAY -->
+        <div id="config-overlay" class="overlay-screen hidden">
+            <h1 style="color:var(--neon-blue)">MISSION CONFIG</h1>
+            <p style="font-size: 1rem; color:#aaa;">VELG GANGETABELLER FOR Å ØKE INNTEKTEN</p>
+            <div id="table-selector"></div>
+            <div id="bonus-display">
+                YIELD MULTIPLIER: <span id="ui-multiplier" style="color:var(--neon-green)">x1.0</span>
+            </div>
+            <button class="btn-large" onclick="game.closeConfig()">DEPLOY SYSTEM</button>
+        </div>
+
+        <!-- MATH TERMINAL -->
         <div id="math-terminal" class="hidden">
             <div class="terminal-window">
                 <div class="terminal-header"><span class="blink">>></span> EXECUTING CODE <span class="blink"><<</span></div>
@@ -84,6 +92,8 @@
             <h1 id="wave-title">WAVE COMPLETE</h1>
             <p>Score Bonus: <span id="wave-bonus" style="color:var(--neon-green)">0</span></p>
             <button class="btn-large" onclick="game.startNextWave()">START NEXT WAVE</button>
+            <br><br>
+            <button class="btn-small" onclick="game.openConfig()">CHANGE CONFIG</button>
         </div>
         
         <!-- LEVEL COMPLETE OVERLAY -->
@@ -104,4 +114,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #26 -->
+<!-- Version: #32 -->
