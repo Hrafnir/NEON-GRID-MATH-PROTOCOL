@@ -1,10 +1,10 @@
-/* Version: #32 */
+/* Version: #33 */
 /**
- * NEON DEFENSE: SAFEGUARD UPDATE
- * Inkluderer DOM-validering for å hindre krasj ved feil HTML-versjon.
+ * NEON DEFENSE: RESURRECTION UPDATE
+ * Fixes: Restored missing Wave Logic functions.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V32 (SAFEGUARD) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V33 (COMPLETE) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -28,7 +28,6 @@ const CONFIG = {
 
 // --- MAP DATA ---
 const LEVEL_MAPS = [
-    // Level 1: The Snake
     {
         path: [{x:-50, y:150}, {x:1000, y:150}, {x:1000, y:350}, {x:200, y:350}, {x:200, y:550}, {x:1000, y:550}, {x:1000, y:700}, {x:50, y:700}],
         core: {x: 50, y: 700}, miner: {x: 1150, y: 100},
@@ -39,7 +38,6 @@ const LEVEL_MAPS = [
             {x:850, y:630}, {x:700, y:630}, {x:550, y:630}, {x:400, y:630}, {x:250, y:630}
         ]
     },
-    // Level 2: The Siege
     {
         path: [{x:50, y:-50}, {x:50, y:650}, {x:1230, y:650}, {x:1230, y:150}, {x:300, y:150}, {x:300, y:400}, {x:640, y:400}],
         core: {x: 640, y: 400}, miner: {x: 1100, y: 700},
@@ -51,7 +49,6 @@ const LEVEL_MAPS = [
             {x:400, y:350}, {x:500, y:350}, {x:500, y:450}
         ]
     },
-    // Level 3: The Zig-Zag
     {
         path: [{x:-50, y:100}, {x:300, y:100}, {x:300, y:700}, {x:600, y:700}, {x:600, y:100}, {x:900, y:100}, {x:900, y:700}, {x:1200, y:700}, {x:1200, y:400}, {x:1350, y:400}],
         core: {x: 1300, y: 400}, miner: {x: 100, y: 700},
@@ -106,7 +103,6 @@ const state = {
     score: 0, highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
     activeTables: [2, 3, 4, 5, 10], yieldMultiplier: 1.0, minerLvl: 1,
     
-    // Map Data
     currentMap: LEVEL_MAPS[0],
     platforms: [], 
     
@@ -423,6 +419,126 @@ const game = {
         game.updateUI();
     },
 
+    // --- WAVE LOGIC (GJENINNATT FRA V29) ---
+    shuffle: (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    },
+
+    generateWavePool: (waveTotal) => {
+        let pool = [];
+        let total = 12 + (waveTotal * 2); 
+        let numFast = 0; let numTank = 0;
+        if (waveTotal >= 3) numFast = Math.floor(total * 0.25); 
+        if (waveTotal >= 6) numTank = Math.floor(total * 0.20); 
+        let numBasic = total - numFast - numTank;
+        for(let i=0; i<numBasic; i++) pool.push('basic');
+        for(let i=0; i<numFast; i++) pool.push('fast');
+        for(let i=0; i<numTank; i++) pool.push('tank');
+        return game.shuffle(pool);
+    },
+
+    startNextWave: () => {
+        if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
+            game.levelComplete();
+            return;
+        }
+
+        state.waveInLevel++;
+        state.waveTotal++;
+        state.gameState = 'PLAYING';
+        document.querySelectorAll('.overlay-screen').forEach(el => el.classList.add('hidden'));
+        
+        state.spawnQueue = game.generateWavePool(state.waveTotal);
+        
+        let hpBase = 60 + (state.waveTotal * 40);
+        let speedBase = 0.8 + (state.waveTotal * 0.1);
+        
+        state.enemiesToSpawn = state.spawnQueue.length;
+        playSound('wave_start');
+        console.log(`Level ${state.level}, Wave ${state.waveInLevel} (Total ${state.waveTotal})`);
+
+        if (state.spawnTimer) clearInterval(state.spawnTimer);
+        state.spawnTimer = setInterval(() => {
+            if (state.gameState !== 'PLAYING') return;
+            
+            if (state.spawnQueue.length > 0) {
+                const type = state.spawnQueue.pop(); 
+                let eHp = hpBase;
+                let eSpeed = speedBase;
+                
+                if (type === 'fast') { eHp *= 0.6; eSpeed *= 1.5; }
+                if (type === 'tank') { eHp *= 2.5; eSpeed *= 0.6; }
+
+                state.enemies.push({
+                    x: state.currentMap.path[0].x, 
+                    y: state.currentMap.path[0].y, 
+                    pathIdx: 0,
+                    hp: eHp, maxHp: eHp, speed: eSpeed, frozen: 0, type: type
+                });
+            } else {
+                clearInterval(state.spawnTimer);
+            }
+        }, 1200); 
+        
+        game.updateUI();
+    },
+
+    checkWaveEnd: () => {
+        if (state.spawnQueue.length === 0 && state.enemies.length === 0 && state.gameState === 'PLAYING') {
+            game.waveComplete();
+        }
+    },
+
+    waveComplete: () => {
+        state.gameState = 'LOBBY';
+        const bonus = state.waveTotal * 100;
+        state.score += bonus;
+        game.checkHighScore();
+        
+        if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
+            document.getElementById('next-level-num').innerText = state.level + 1;
+            document.getElementById('level-overlay').classList.remove('hidden');
+        } else {
+            document.getElementById('wave-title').innerText = "WAVE COMPLETE";
+            document.getElementById('wave-bonus').innerText = bonus;
+            document.getElementById('wave-overlay').classList.remove('hidden');
+        }
+        
+        game.closeMath();
+        game.updateUI();
+    },
+    
+    levelComplete: () => {
+        // Handled by overlay button
+    },
+    
+    startNextLevel: () => {
+        game.loadLevel(state.level + 1);
+        document.getElementById('level-overlay').classList.add('hidden');
+        document.getElementById('wave-overlay').classList.remove('hidden');
+        document.getElementById('wave-title').innerText = "NEW SECTOR REACHED";
+        document.getElementById('wave-bonus').innerText = "READY";
+        game.updateUI();
+    },
+
+    checkHighScore: () => {
+        if (state.score > state.highScore) {
+            state.highScore = state.score;
+            localStorage.setItem('nd_highscore', state.highScore);
+        }
+    },
+
+    gameOver: () => {
+        state.gameState = 'GAMEOVER';
+        document.getElementById('final-score').innerText = state.score;
+        document.getElementById('gameover-overlay').classList.remove('hidden');
+        game.closeMath();
+    },
+
     // --- GAME LOOP ---
     handleCanvasClick: (e) => {
         if (state.mathTask.active) return;
@@ -601,7 +717,8 @@ const game = {
             const idx = state.enemies.indexOf(e);
             if (idx > -1) {
                 state.enemies.splice(idx, 1);
-                state.money += 2; 
+                let reward = 7 * state.yieldMultiplier;
+                state.money += reward;
                 state.score += 10;
                 game.checkHighScore();
                 game.updateUI();
@@ -678,7 +795,7 @@ const game = {
         }
     },
 
-    // --- DRAW HELPER (THIS WAS MISSING!) ---
+    // --- DRAW HELPER ---
     drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
         if (img && img.complete && img.naturalWidth > 0) {
             let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
@@ -724,4 +841,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #32 */
+/* Version: #33 */
