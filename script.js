@@ -1,10 +1,10 @@
-/* Version: #30 */
+/* Version: #31 */
 /**
- * NEON DEFENSE: STABILITY UPDATE
- * Fixes: Re-added missing drawSprite function inside game object.
+ * NEON DEFENSE: DEBUG & FIX
+ * Endringer: Rettet game-objekt struktur, lagt til klikk-logging.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V30 (FINAL FIX) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V31 (DEBUG) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -106,7 +106,6 @@ const state = {
     score: 0, highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
     activeTables: [2, 3, 4, 5, 10], yieldMultiplier: 1.0, minerLvl: 1,
     
-    // Map Data
     currentMap: LEVEL_MAPS[0],
     platforms: [], 
     
@@ -165,13 +164,9 @@ const game = {
     openConfig: () => {
         if (state.gameState === 'PLAYING') { alert("COMBAT ACTIVE"); return; }
         state.gameState = 'CONFIG';
-        const el = document.getElementById('config-overlay');
-        if(el) {
-            el.classList.remove('hidden');
-            game.renderTableSelector();
-        }
-        const wave = document.getElementById('wave-overlay');
-        if(wave) wave.classList.add('hidden');
+        document.getElementById('config-overlay').classList.remove('hidden');
+        document.getElementById('wave-overlay').classList.add('hidden'); 
+        game.renderTableSelector();
     },
 
     closeConfig: () => {
@@ -419,6 +414,8 @@ const game = {
         const scaleY = document.getElementById('game-canvas').height / rect.height;
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
+        
+        console.log(`Click at: ${Math.floor(x)}, ${Math.floor(y)}`);
 
         // 1. Sjekk PLATTFORM (Tårn) - Radius 50px
         for (let i = 0; i < state.platforms.length; i++) {
@@ -426,6 +423,7 @@ const game = {
             if (p.tower && p.tower.type === 'trap') continue;
 
             if (Math.hypot(x - p.x, y - p.y) < 50) {
+                console.log(`Hit platform ${i}`);
                 game.openTurretMenu(i);
                 return;
             }
@@ -587,7 +585,8 @@ const game = {
             const idx = state.enemies.indexOf(e);
             if (idx > -1) {
                 state.enemies.splice(idx, 1);
-                state.money += 2; 
+                let reward = 7 * state.yieldMultiplier;
+                state.money += reward;
                 state.score += 10;
                 game.checkHighScore();
                 game.updateUI();
@@ -664,7 +663,7 @@ const game = {
         }
     },
 
-    // --- DRAW HELPER (THIS WAS MISSING!) ---
+    // --- DRAW HELPER ---
     drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
         if (img && img.complete && img.naturalWidth > 0) {
             let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
@@ -710,4 +709,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #30 */
+/* Version: #31 */
