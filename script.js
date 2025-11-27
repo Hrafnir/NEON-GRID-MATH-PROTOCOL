@@ -1,38 +1,32 @@
-/* Version: #27 */
+/* Version: #28 */
 /**
- * NEON DEFENSE: TACTICAL UPDATE
- * Endringer: Plattform-basert bygging, Tech Tree (Research), Pause-menyer.
+ * NEON DEFENSE: BUGFIX & PATH LOGIC
+ * Fixes: Nullpointer ved oppstart, strengere plasseringsregler.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V27 (TACTICAL) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V28 (STABLE) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
-    STARTING_BITS: 100, // Startkapital for Research
+    STARTING_BITS: 100, 
     STARTING_LIVES: 20,
-    MINER_BASE_RATE: 1, // Bits per sekund (lavere nå, siden det kun er til research)
+    MINER_BASE_RATE: 1, 
     WAVES_PER_LEVEL: 10,
+    PATH_WIDTH: 80, // Bredden på veien for mine-sjekk
     
-    // Kostnad i BITS for å låse opp (Research)
     RESEARCH_COSTS: {
-        'blaster': 0, 
-        'trap': 150,
-        'sniper': 400,
-        'cryo': 600,
-        'cannon': 1000,
-        'tesla': 2000
+        'blaster': 0, 'trap': 150, 'sniper': 400,
+        'cryo': 600, 'cannon': 1000, 'tesla': 2000
     },
 
-    // Kostnad i MATTE-OPPGAVER
     MATH_COSTS: {
-        BUILD: 1,       // Lvl 1 tårn
-        MINE: 2,        // Legge mine
-        UPGRADE_BASE: 1 // Ganger med level (Lvl 2 = 2 oppgaver, Lvl 3 = 3...)
+        BUILD: 1,       
+        MINE: 2,        
+        UPGRADE_BASE: 1 
     }
 };
 
-// --- MAP DATA MED PLATTFORMER ---
-// Vi definerer hvor tårn kan bygges (x, y)
+// --- MAP DATA ---
 const LEVEL_MAPS = [
     // Level 1: The Snake
     {
@@ -50,11 +44,11 @@ const LEVEL_MAPS = [
         path: [{x:50, y:-50}, {x:50, y:650}, {x:1230, y:650}, {x:1230, y:150}, {x:300, y:150}, {x:300, y:400}, {x:640, y:400}],
         core: {x: 640, y: 400}, miner: {x: 1100, y: 700},
         platforms: [
-            {x:150, y:100}, {x:150, y:250}, {x:150, y:400}, {x:150, y:550}, // Venstre flanke
-            {x:300, y:550}, {x:450, y:550}, {x:600, y:550}, {x:750, y:550}, {x:900, y:550}, {x:1050, y:550}, // Bunn
-            {x:1130, y:500}, {x:1130, y:350}, {x:1130, y:200}, // Høyre flanke
-            {x:1000, y:250}, {x:850, y:250}, {x:700, y:250}, {x:550, y:250}, {x:400, y:250}, // Topp indre
-            {x:400, y:350}, {x:500, y:350}, {x:500, y:450} // Kjerneforsvar
+            {x:150, y:100}, {x:150, y:250}, {x:150, y:400}, {x:150, y:550},
+            {x:300, y:550}, {x:450, y:550}, {x:600, y:550}, {x:750, y:550}, {x:900, y:550}, {x:1050, y:550},
+            {x:1130, y:500}, {x:1130, y:350}, {x:1130, y:200},
+            {x:1000, y:250}, {x:850, y:250}, {x:700, y:250}, {x:550, y:250}, {x:400, y:250},
+            {x:400, y:350}, {x:500, y:350}, {x:500, y:450}
         ]
     },
     // Level 3: The Zig-Zag
@@ -62,8 +56,7 @@ const LEVEL_MAPS = [
         path: [{x:-50, y:100}, {x:300, y:100}, {x:300, y:700}, {x:600, y:700}, {x:600, y:100}, {x:900, y:100}, {x:900, y:700}, {x:1200, y:700}, {x:1200, y:400}, {x:1350, y:400}],
         core: {x: 1300, y: 400}, miner: {x: 100, y: 700},
         platforms: [
-            {x:150, y:180}, {x:150, y:30}, 
-            {x:220, y:200}, {x:220, y:350}, {x:220, y:500}, {x:220, y:650},
+            {x:150, y:180}, {x:150, y:30}, {x:220, y:200}, {x:220, y:350}, {x:220, y:500}, {x:220, y:650},
             {x:380, y:650}, {x:380, y:500}, {x:380, y:350}, {x:380, y:200},
             {x:520, y:200}, {x:520, y:350}, {x:520, y:500}, {x:520, y:650},
             {x:680, y:650}, {x:680, y:500}, {x:680, y:350}, {x:680, y:200},
@@ -108,35 +101,19 @@ const state = {
     gameState: 'START', 
     money: CONFIG.STARTING_BITS,
     lives: CONFIG.STARTING_LIVES,
+    level: 1, waveTotal: 0, waveInLevel: 0, 
+    score: 0, highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
+    activeTables: [2, 3, 4, 5, 10], yieldMultiplier: 1.0, minerLvl: 1,
     
-    level: 1,
-    waveTotal: 0, 
-    waveInLevel: 0, 
+    // Map Data - Initialiserer med første kart for å unngå kræsj
+    currentMap: LEVEL_MAPS[0],
+    platforms: [], 
     
-    score: 0,
-    highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
-    
-    activeTables: [2, 3, 4, 5, 10], 
-    yieldMultiplier: 1.0,
-    minerLvl: 1,
-    
-    // Map Data
-    currentMap: null,
-    platforms: [], // {x, y, tower: null}
-    
-    enemies: [],
-    projectiles: [],
-    particles: [],
-    
+    enemies: [], projectiles: [], particles: [],
     unlockedTowers: ['blaster'],
-    
-    // Wave Logic
-    spawnQueue: [], 
-    spawnTimer: null,
-    
-    // Interaction
-    selectedPlatformIdx: -1, // Hvilken plattform har vi klikket på?
-    
+    selectedBlueprint: null, 
+    spawnQueue: [], spawnTimer: null,
+    selectedPlatformIdx: -1,
     mathTask: { active: false, type: null, target: null, remaining: 0, total: 0, answer: 0 }
 };
 
@@ -152,13 +129,22 @@ function playSound(type) {
     if (type === 'shoot') { osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now+0.1); gain.gain.setValueAtTime(0.03, now); gain.gain.linearRampToValueAtTime(0, now+0.1); osc.start(now); osc.stop(now+0.1); }
     else if (type === 'hit') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now+0.05); osc.start(now); osc.stop(now+0.05); }
     else if (type === 'correct') { osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now+0.2); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.2); osc.start(now); osc.stop(now+0.2); }
+    else if (type === 'terminal_open') { osc.type = 'square'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(400, now+0.3); gain.gain.setValueAtTime(0.05, now); osc.start(now); osc.stop(now+0.3); }
+    else if (type === 'wave_start') { osc.type = 'triangle'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(800, now+1.0); gain.gain.setValueAtTime(0.1, now); osc.start(now); osc.stop(now+1.0); }
+    else if (type === 'explode') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50, now); osc.frequency.linearRampToValueAtTime(10, now+0.4); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now+0.4); osc.start(now); osc.stop(now+0.4); }
     else if (type === 'click') { osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); gain.gain.setValueAtTime(0.05, now); osc.start(now); osc.stop(now+0.05); }
 }
 
 const game = {
     init: () => {
-        document.getElementById('ui-layer').classList.add('hidden');
-        document.getElementById('start-screen').classList.remove('hidden');
+        // Last level 1 data med en gang for å unngå nullpointer
+        game.loadLevel(1);
+        
+        let ui = document.getElementById('ui-layer');
+        if(ui) ui.classList.add('hidden');
+        let start = document.getElementById('start-screen');
+        if(start) start.classList.remove('hidden');
+        
         requestAnimationFrame(game.loop);
         setInterval(game.minerTick, 1000); 
     },
@@ -166,7 +152,6 @@ const game = {
     enterLobby: () => {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('ui-layer').classList.remove('hidden');
-        game.loadLevel(1);
         game.openConfig();
     },
 
@@ -184,18 +169,22 @@ const game = {
         state.enemies = [];
         state.projectiles = [];
         state.particles = [];
+        console.log(`Loading Level ${lvlNum}, Map ${mapIdx}`);
     },
 
-    // --- MENUS & PAUSE LOGIC ---
-    
-    // Config Menu
+    // --- MENUS ---
     openConfig: () => {
-        if (state.gameState === 'PLAYING') { alert("COMBAT ACTIVE - CANNOT CONFIG"); return; }
+        if (state.gameState === 'PLAYING') { alert("COMBAT ACTIVE"); return; }
         state.gameState = 'CONFIG';
-        document.getElementById('config-overlay').classList.remove('hidden');
-        document.getElementById('wave-overlay').classList.add('hidden');
-        game.renderTableSelector();
+        const el = document.getElementById('config-overlay');
+        if(el) {
+            el.classList.remove('hidden');
+            game.renderTableSelector();
+        }
+        const wave = document.getElementById('wave-overlay');
+        if(wave) wave.classList.add('hidden');
     },
+
     closeConfig: () => {
         if (state.activeTables.length === 0) { alert("SELECT DATA STREAM!"); return; }
         document.getElementById('config-overlay').classList.add('hidden');
@@ -204,10 +193,9 @@ const game = {
         game.updateUI();
     },
 
-    // Research Menu (Bits)
     openResearch: () => {
         if (state.gameState === 'PLAYING') { alert("COMBAT ACTIVE"); return; }
-        state.gameState = 'MENU'; // Pause
+        state.gameState = 'MENU'; 
         document.getElementById('research-overlay').classList.remove('hidden');
         game.renderResearchGrid();
     },
@@ -219,14 +207,13 @@ const game = {
         const grid = document.getElementById('research-grid');
         grid.innerHTML = "";
         for (let key of Object.keys(TOWERS)) {
-            if (key === 'trap') continue; // Miner kjøpes ikke her
-            
+            if (key === 'trap') continue; 
             const t = TOWERS[key];
             const unlocked = state.unlockedTowers.includes(key);
             const cost = CONFIG.RESEARCH_COSTS[key];
             
             const div = document.createElement('div');
-            div.className = `menu-btn ${unlocked ? 'locked' : ''}`; // Gjenbruk style
+            div.className = `menu-btn ${unlocked ? 'locked' : ''}`; 
             div.style.borderColor = unlocked ? "#0aff00" : "#00f3ff";
             
             div.innerHTML = `
@@ -234,7 +221,6 @@ const game = {
                 <div style="font-size:0.8rem;">${unlocked ? "UNLOCKED" : "LOCKED"}</div>
                 ${!unlocked ? `<div class="cost-bits">${cost} BITS</div>` : ""}
             `;
-            
             if (!unlocked) {
                 div.onclick = () => {
                     if (state.money >= cost) {
@@ -243,19 +229,16 @@ const game = {
                         playSound('correct');
                         game.renderResearchGrid();
                         game.updateUI();
-                    } else {
-                        alert("NEED MORE BITS!");
-                    }
+                    } else { alert("NEED MORE BITS!"); }
                 };
             }
             grid.appendChild(div);
         }
     },
 
-    // Turret Control Menu (Pause)
     openTurretMenu: (idx) => {
         state.selectedPlatformIdx = idx;
-        state.gameState = 'MENU'; // PAUSE GAME
+        state.gameState = 'MENU'; 
         
         const p = state.platforms[idx];
         const menu = document.getElementById('turret-menu');
@@ -266,12 +249,10 @@ const game = {
         options.innerHTML = "";
         
         if (p.tower) {
-            // SHOW UPGRADE / SWAP OPTIONS
             const t = p.tower;
             const dmg = Math.floor(TOWERS[t.type].damage * Math.pow(1.4, t.level-1));
             stats.innerHTML = `<span style="color:${TOWERS[t.type].color}">${TOWERS[t.type].name}</span> LVL ${t.level}<br>DMG: ${dmg}`;
             
-            // Upgrade Button
             const upCost = t.level * CONFIG.MATH_COSTS.UPGRADE_BASE;
             const btnUp = document.createElement('div');
             btnUp.className = "menu-btn";
@@ -279,7 +260,6 @@ const game = {
             btnUp.onclick = () => game.triggerMathAction('UPGRADE', idx, upCost);
             options.appendChild(btnUp);
             
-            // Swap Options (Downgrade)
             state.unlockedTowers.forEach(type => {
                 if (type === t.type) return;
                 const btn = document.createElement('div');
@@ -288,9 +268,7 @@ const game = {
                 btn.onclick = () => game.triggerMathAction('SWAP', {idx, type}, 1);
                 options.appendChild(btn);
             });
-            
         } else {
-            // SHOW BUILD OPTIONS
             stats.innerHTML = "EMPTY SLOT";
             state.unlockedTowers.forEach(type => {
                 const btn = document.createElement('div');
@@ -304,26 +282,60 @@ const game = {
     
     closeTurretMenu: () => {
         document.getElementById('turret-menu').classList.add('hidden');
-        if (state.waveInLevel > 0 && state.enemies.length > 0) state.gameState = 'PLAYING'; // Resume if wave active
+        if (state.waveInLevel > 0 && state.enemies.length > 0) state.gameState = 'PLAYING';
         else state.gameState = 'LOBBY';
     },
 
     triggerMathAction: (action, target, cost) => {
-        // Lukk menyen og start spillet igjen
         document.getElementById('turret-menu').classList.add('hidden');
         state.gameState = 'PLAYING'; 
-        
         let text = "";
         if (action === 'BUILD') text = `BUILDING ${TOWERS[target.type].name}`;
         if (action === 'UPGRADE') text = `UPGRADING SYSTEM`;
         if (action === 'SWAP') text = `RECONFIGURING TURRET`;
         if (action === 'MINE') text = `PLACING PROXIMITY MINE`;
         if (action === 'MINER') text = `OVERCLOCKING MINER`;
-
         game.startMathTask(action, target, cost, text);
     },
 
-    // --- MATH ---
+    // --- MATH & CONFIG UI ---
+    renderTableSelector: () => {
+        const container = document.getElementById('table-selector');
+        if(!container) return;
+        container.innerHTML = "";
+        for (let i = 2; i <= 12; i++) {
+            const btn = document.createElement('div');
+            const isActive = state.activeTables.includes(i);
+            btn.className = `table-btn ${isActive ? 'active' : ''}`;
+            btn.innerText = i;
+            btn.onclick = () => game.toggleTable(i);
+            container.appendChild(btn);
+        }
+        game.calcMultiplier();
+    },
+
+    toggleTable: (num) => {
+        playSound('click');
+        const idx = state.activeTables.indexOf(num);
+        if (idx > -1) state.activeTables.splice(idx, 1);
+        else state.activeTables.push(num);
+        game.renderTableSelector();
+    },
+
+    calcMultiplier: () => {
+        const count = state.activeTables.length;
+        let mult = 1.0;
+        if (count > 1) mult += (count - 1) * 0.1;
+        state.yieldMultiplier = parseFloat(mult.toFixed(1));
+        const el = document.getElementById('ui-multiplier');
+        if(el) {
+            el.innerText = "x" + state.yieldMultiplier;
+            if (state.yieldMultiplier >= 2.0) el.style.color = "#0aff00"; 
+            else if (state.yieldMultiplier >= 1.5) el.style.color = "#ffee00"; 
+            else el.style.color = "#fff"; 
+        }
+    },
+
     startMathTask: (type, target, count, contextText) => {
         state.mathTask = { active: true, type, target, remaining: count, total: count };
         const terminal = document.getElementById('math-terminal');
@@ -368,13 +380,12 @@ const game = {
 
     completeMathTask: () => {
         const t = state.mathTask;
-        
         if (t.type === 'MINER') {
             state.minerLvl++;
         }
         else if (t.type === 'MINE') {
-            state.particles.push({x:t.target.x, y:t.target.y, type:'mine', life: 9999}); // Visual placeholder
-            // Legger til en "trap" i tårn-listen, men uten plattform-tilknytning
+            state.particles.push({x:t.target.x, y:t.target.y, type:'mine', life: 9999});
+            // Legg til mine som en "pseudo-platform" som slettes ved treff
             state.platforms.push({x: t.target.x, y: t.target.y, tower: {
                 type: 'trap', level: 1, angle: 0, cooldown: 0, range: TOWERS.trap.range, damage: TOWERS.trap.damage
             }});
@@ -382,18 +393,13 @@ const game = {
         else if (t.type === 'BUILD') {
             const p = state.platforms[t.target.idx];
             p.tower = {
-                type: t.target.type,
-                level: 1,
-                angle: 0,
-                cooldown: 0,
-                range: TOWERS[t.target.type].range,
-                damage: TOWERS[t.target.type].damage,
-                maxCooldown: TOWERS[t.target.type].rate
+                type: t.target.type, level: 1, angle: 0, cooldown: 0,
+                range: TOWERS[t.target.type].range, damage: TOWERS[t.target.type].damage, maxCooldown: TOWERS[t.target.type].rate
             };
             createParticles(p.x, p.y, "#fff", 20);
         }
         else if (t.type === 'UPGRADE') {
-            const p = state.platforms[t.target]; // target er idx her
+            const p = state.platforms[t.target]; 
             if (p.tower) {
                 p.tower.level++;
                 p.tower.damage *= 1.4;
@@ -407,29 +413,18 @@ const game = {
                 let newLevel = Math.max(1, Math.floor(p.tower.level / 2));
                 let type = t.target.type;
                 p.tower = {
-                    type: type,
-                    level: newLevel,
-                    angle: 0,
-                    cooldown: 0,
-                    range: TOWERS[type].range,
-                    damage: TOWERS[type].damage * Math.pow(1.4, newLevel-1),
-                    maxCooldown: TOWERS[type].rate
+                    type: type, level: newLevel, angle: 0, cooldown: 0,
+                    range: TOWERS[type].range, damage: TOWERS[type].damage * Math.pow(1.4, newLevel-1), maxCooldown: TOWERS[type].rate
                 };
             }
         }
-
         game.closeMath();
         game.updateUI();
     },
 
-    closeMath: () => {
-        state.mathTask.active = false;
-        document.getElementById('math-terminal').classList.add('hidden');
-    },
-
-    // --- INPUT HANDLER ---
+    // --- GAME LOOP ---
     handleCanvasClick: (e) => {
-        if (state.mathTask.active) return; // Busy calculating
+        if (state.mathTask.active) return;
         if (state.gameState === 'MENU' || state.gameState === 'CONFIG') return;
 
         const rect = document.getElementById('game-canvas').getBoundingClientRect();
@@ -438,10 +433,10 @@ const game = {
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
-        // 1. Sjekk plattformer (Pause & Menu)
+        // 1. Sjekk PLATTFORM (Tårn)
         for (let i = 0; i < state.platforms.length; i++) {
             const p = state.platforms[i];
-            // Ignorer miner (traps) i plattform-sjekk, de er engangs
+            // Miner på bakken skal ikke være klikkbare menyer
             if (p.tower && p.tower.type === 'trap') continue;
 
             if (Math.hypot(x - p.x, y - p.y) < 40) {
@@ -450,15 +445,48 @@ const game = {
             }
         }
 
-        // 2. Sjekk for Mine-plassering (Kun hvis spillet er i gang)
+        // 2. Sjekk LØYPE (Miner)
         if (state.gameState === 'PLAYING') {
-            // Sjekk om vi er nær stien (enkel sjekk)
-            // (Foreløpig tillater vi miner overalt unntatt på plattformer)
-            game.triggerMathAction('MINE', {x, y}, CONFIG.MATH_COSTS.MINE);
+            if (game.isPointOnPath(x, y)) {
+                game.triggerMathAction('MINE', {x, y}, CONFIG.MATH_COSTS.MINE);
+            }
         }
     },
 
-    // --- GAME LOOP & LOGIC ---
+    // Sjekker om et punkt er på stien
+    isPointOnPath: (x, y) => {
+        if (!state.currentMap) return false;
+        const path = state.currentMap.path;
+        const width = CONFIG.PATH_WIDTH / 2; // Radius
+
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = path[i];
+            const p2 = path[i+1];
+            // Avstand fra punkt til linjestykke
+            const dist = game.distToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+            if (dist < width) return true;
+        }
+        return false;
+    },
+
+    distToSegment: (x, y, x1, y1, x2, y2) => {
+        const A = x - x1;
+        const B = y - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        const dot = A * C + B * D;
+        const len_sq = C * C + D * D;
+        let param = -1;
+        if (len_sq != 0) param = dot / len_sq;
+        let xx, yy;
+        if (param < 0) { xx = x1; yy = y1; }
+        else if (param > 1) { xx = x2; yy = y2; }
+        else { xx = x1 + param * C; yy = y1 + param * D; }
+        const dx = x - xx;
+        const dy = y - yy;
+        return Math.sqrt(dx * dx + dy * dy);
+    },
+
     loop: () => {
         game.update();
         game.draw();
@@ -498,7 +526,6 @@ const game = {
         game.checkWaveEnd();
 
         // Towers & Traps
-        // Iterer baklengs for trygg sletting av traps
         for (let i = state.platforms.length - 1; i >= 0; i--) {
             let p = state.platforms[i];
             if (!p.tower) continue;
@@ -510,14 +537,11 @@ const game = {
                         game.damageEnemy(e, t.damage);
                         createParticles(p.x, p.y, "#ffaa00", 30);
                         playSound('explode');
-                        // Fjern trap fra plattform-listen (kun hvis det er en dynamisk mine)
-                        // NB: Faste plattformer skal ikke slettes, bare tårnet. 
-                        // Men miner lagt på bakken er lagt til som "fake platforms".
-                        // Vi sjekker om det er en av de originale plattformene:
+                        // Slett minen. Hvis den er dynamisk (lagt til sist), fjern fra array
                         if (i >= state.currentMap.platforms.length) {
-                            state.platforms.splice(i, 1); // Slett hele oppføringen for miner på bakken
+                            state.platforms.splice(i, 1);
                         } else {
-                            p.tower = null; // Tøm plattformen hvis vi tillater miner på plattformer (ikke nå)
+                            p.tower = null;
                         }
                         break;
                     }
@@ -582,7 +606,7 @@ const game = {
             const idx = state.enemies.indexOf(e);
             if (idx > -1) {
                 state.enemies.splice(idx, 1);
-                state.money += 2; // Lite bits per kill nå
+                state.money += 2; 
                 state.score += 10;
                 game.checkHighScore();
                 game.updateUI();
@@ -596,12 +620,14 @@ const game = {
         const ctx = document.getElementById('game-canvas').getContext('2d');
         ctx.fillStyle = "#0a0a15"; ctx.fillRect(0, 0, 1280, 800);
         
+        if(!state.currentMap) return;
+
         // Decor
         game.drawSprite(ctx, ASSETS.core, state.currentMap.core.x, state.currentMap.core.y, 100, 100);
         game.drawSprite(ctx, ASSETS.miner, state.currentMap.miner.x, state.currentMap.miner.y, 100, 100);
 
         // Path
-        ctx.strokeStyle = "#1a1a2e"; ctx.lineWidth = 80; ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.strokeStyle = "#1a1a2e"; ctx.lineWidth = CONFIG.PATH_WIDTH; ctx.lineCap = "round"; ctx.lineJoin = "round";
         ctx.beginPath(); 
         let path = state.currentMap.path;
         ctx.moveTo(path[0].x, path[0].y);
@@ -615,20 +641,16 @@ const game = {
                     ctx.fillStyle = "#ffee00"; ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI*2); ctx.fill();
                 }
             } else {
-                // Draw Base (Empty or Occupied)
                 game.drawSprite(ctx, ASSETS.base, p.x, p.y, 80, 80);
-                
                 if (p.tower) {
                     let t = p.tower;
                     let rot = t.angle;
                     if(t.type === 'sniper') rot += Math.PI; 
-                    
                     if(!game.drawSprite(ctx, ASSETS[TOWERS[t.type].img], p.x, p.y, 80, 80, rot)) {
                          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(t.angle);
                          ctx.fillStyle = TOWERS[t.type].color; ctx.fillRect(0, -5, 20, 10);
                          ctx.restore();
                     }
-                    // Level Text
                     ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(p.x - 12, p.y + 35, 24, 16); 
                     ctx.fillStyle = "#fff"; ctx.font = "bold 14px Arial"; ctx.fillText("v"+t.level, p.x-8, p.y+48);
                 }
@@ -674,129 +696,7 @@ const game = {
         return false;
     },
 
-    // --- WAVE LOGIC ---
-    startNextWave: () => {
-        if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) { game.levelComplete(); return; }
-        state.waveInLevel++; state.waveTotal++;
-        state.gameState = 'PLAYING';
-        document.querySelectorAll('.overlay-screen').forEach(el => el.classList.add('hidden'));
-        state.spawnQueue = game.generateWavePool(state.waveTotal);
-        
-        // Slower start
-        let hpBase = 60 + (state.waveTotal * 40);
-        let speedBase = 0.6 + (state.waveTotal * 0.1); // Tregere start
-        
-        state.enemiesToSpawn = state.spawnQueue.length;
-        playSound('wave_start');
-        
-        if (state.spawnTimer) clearInterval(state.spawnTimer);
-        state.spawnTimer = setInterval(() => {
-            if (state.gameState !== 'PLAYING') return;
-            if (state.spawnQueue.length > 0) {
-                const type = state.spawnQueue.pop(); 
-                let eHp = hpBase; let eSpeed = speedBase;
-                if (type === 'fast') { eHp *= 0.6; eSpeed *= 1.5; }
-                if (type === 'tank') { eHp *= 2.5; eSpeed *= 0.6; }
-                state.enemies.push({ x: state.currentMap.path[0].x, y: state.currentMap.path[0].y, pathIdx: 0, hp: eHp, maxHp: eHp, speed: eSpeed, frozen: 0, type: type });
-            } else { clearInterval(state.spawnTimer); }
-        }, 1500); // 1.5 sek mellom fiender (litt mer tid)
-        game.updateUI();
-    },
-    
-    generateWavePool: (waveTotal) => {
-        let pool = [];
-        let total = 8 + (waveTotal * 2); // Litt færre fiender i starten
-        let numFast = 0; let numTank = 0;
-        if (waveTotal >= 3) numFast = Math.floor(total * 0.25); 
-        if (waveTotal >= 6) numTank = Math.floor(total * 0.20); 
-        let numBasic = total - numFast - numTank;
-        for(let i=0; i<numBasic; i++) pool.push('basic');
-        for(let i=0; i<numFast; i++) pool.push('fast');
-        for(let i=0; i<numTank; i++) pool.push('tank');
-        return game.shuffle(pool);
-    },
-    shuffle: (array) => {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    },
-    checkWaveEnd: () => {
-        if (state.spawnQueue.length === 0 && state.enemies.length === 0 && state.gameState === 'PLAYING') {
-            game.waveComplete();
-        }
-    },
-    waveComplete: () => {
-        state.gameState = 'LOBBY';
-        const bonus = state.waveTotal * 50;
-        state.score += bonus;
-        game.checkHighScore();
-        if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
-            document.getElementById('next-level-num').innerText = state.level + 1;
-            document.getElementById('level-overlay').classList.remove('hidden');
-        } else {
-            document.getElementById('wave-title').innerText = "WAVE COMPLETE";
-            document.getElementById('wave-bonus').innerText = bonus;
-            document.getElementById('wave-overlay').classList.remove('hidden');
-        }
-        game.closeMath();
-        game.updateUI();
-    },
-    levelComplete: () => {},
-    startNextLevel: () => {
-        game.loadLevel(state.level + 1);
-        document.getElementById('level-overlay').classList.add('hidden');
-        document.getElementById('wave-overlay').classList.remove('hidden');
-        document.getElementById('wave-title').innerText = "NEW SECTOR REACHED";
-        document.getElementById('wave-bonus').innerText = "READY";
-        game.updateUI();
-    },
-    checkHighScore: () => {
-        if (state.score > state.highScore) {
-            state.highScore = state.score;
-            localStorage.setItem('nd_highscore', state.highScore);
-        }
-    },
-    gameOver: () => {
-        state.gameState = 'GAMEOVER';
-        document.getElementById('final-score').innerText = state.score;
-        document.getElementById('gameover-overlay').classList.remove('hidden');
-        game.closeMath();
-    },
-    
-    // --- CONFIG & UI ---
-    renderTableSelector: () => {
-        const container = document.getElementById('table-selector');
-        container.innerHTML = "";
-        for (let i = 2; i <= 12; i++) {
-            const btn = document.createElement('div');
-            const isActive = state.activeTables.includes(i);
-            btn.className = `table-btn ${isActive ? 'active' : ''}`;
-            btn.innerText = i;
-            btn.onclick = () => game.toggleTable(i);
-            container.appendChild(btn);
-        }
-        game.calcMultiplier();
-    },
-    toggleTable: (num) => {
-        playSound('click');
-        const idx = state.activeTables.indexOf(num);
-        if (idx > -1) state.activeTables.splice(idx, 1);
-        else state.activeTables.push(num);
-        game.renderTableSelector();
-    },
-    calcMultiplier: () => {
-        const count = state.activeTables.length;
-        let mult = 1.0;
-        if (count > 1) mult += (count - 1) * 0.1;
-        state.yieldMultiplier = parseFloat(mult.toFixed(1));
-        const el = document.getElementById('ui-multiplier');
-        el.innerText = "x" + state.yieldMultiplier;
-        if (state.yieldMultiplier >= 2.0) el.style.color = "#0aff00"; 
-        else if (state.yieldMultiplier >= 1.5) el.style.color = "#ffee00"; 
-        else el.style.color = "#fff"; 
-    },
+    // --- UI HELPER ---
     updateUI: () => {
         try {
             if(document.getElementById('ui-bits')) document.getElementById('ui-bits').innerText = Math.floor(state.money);
@@ -814,8 +714,18 @@ const game = {
     }
 };
 
+function createParticles(x, y, color, count) {
+    for(let i=0; i<count; i++) state.particles.push({x, y, vx: (Math.random()-0.5)*7, vy: (Math.random()-0.5)*7, life: 20, color});
+}
+function updateParticles() {
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+        let p = state.particles[i]; p.x += p.vx; p.y += p.vy; p.life--;
+        if (p.life <= 0) state.particles.splice(i, 1);
+    }
+}
+
 document.getElementById('game-canvas').addEventListener('mousedown', game.handleCanvasClick);
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #27 */
+/* Version: #28 */
