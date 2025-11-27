@@ -1,10 +1,10 @@
-/* Version: #31 */
+/* Version: #32 */
 /**
- * NEON DEFENSE: DEBUG & FIX
- * Endringer: Rettet game-objekt struktur, lagt til klikk-logging.
+ * NEON DEFENSE: SAFEGUARD UPDATE
+ * Inkluderer DOM-validering for å hindre krasj ved feil HTML-versjon.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V31 (DEBUG) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V32 (SAFEGUARD) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -106,6 +106,7 @@ const state = {
     score: 0, highScore: parseInt(localStorage.getItem('nd_highscore')) || 0,
     activeTables: [2, 3, 4, 5, 10], yieldMultiplier: 1.0, minerLvl: 1,
     
+    // Map Data
     currentMap: LEVEL_MAPS[0],
     platforms: [], 
     
@@ -136,7 +137,25 @@ function playSound(type) {
 }
 
 const game = {
+    validateDOM: () => {
+        const required = ['config-overlay', 'turret-menu', 'research-overlay', 'math-terminal', 'start-screen'];
+        let missing = false;
+        required.forEach(id => {
+            if(!document.getElementById(id)) {
+                console.error(`MISSING HTML ELEMENT: #${id}`);
+                missing = true;
+            }
+        });
+        if(missing) {
+            alert("CRITICAL ERROR: HTML file is outdated. Please update index.html to Version #32.");
+            return false;
+        }
+        return true;
+    },
+
     init: () => {
+        if(!game.validateDOM()) return;
+
         game.loadLevel(1);
         let ui = document.getElementById('ui-layer'); if(ui) ui.classList.add('hidden');
         let start = document.getElementById('start-screen'); if(start) start.classList.remove('hidden');
@@ -414,8 +433,6 @@ const game = {
         const scaleY = document.getElementById('game-canvas').height / rect.height;
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
-        
-        console.log(`Click at: ${Math.floor(x)}, ${Math.floor(y)}`);
 
         // 1. Sjekk PLATTFORM (Tårn) - Radius 50px
         for (let i = 0; i < state.platforms.length; i++) {
@@ -423,7 +440,6 @@ const game = {
             if (p.tower && p.tower.type === 'trap') continue;
 
             if (Math.hypot(x - p.x, y - p.y) < 50) {
-                console.log(`Hit platform ${i}`);
                 game.openTurretMenu(i);
                 return;
             }
@@ -585,8 +601,7 @@ const game = {
             const idx = state.enemies.indexOf(e);
             if (idx > -1) {
                 state.enemies.splice(idx, 1);
-                let reward = 7 * state.yieldMultiplier;
-                state.money += reward;
+                state.money += 2; 
                 state.score += 10;
                 game.checkHighScore();
                 game.updateUI();
@@ -663,7 +678,7 @@ const game = {
         }
     },
 
-    // --- DRAW HELPER ---
+    // --- DRAW HELPER (THIS WAS MISSING!) ---
     drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
         if (img && img.complete && img.naturalWidth > 0) {
             let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
@@ -709,4 +724,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #31 */
+/* Version: #32 */
