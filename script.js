@@ -1,10 +1,10 @@
-/* Version: #35 */
+/* Version: #36 */
 /**
- * NEON DEFENSE: RESTORED WAVE LOGIC
- * Fixes: Re-added missing startNextWave and wave management functions.
+ * NEON DEFENSE: RESEARCH UPDATE
+ * Fixes: Allow opening Research menu during combat (Pauses game).
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V35 (FULL) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V36 (RESEARCH FIX) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -190,17 +190,19 @@ const game = {
         game.updateUI();
     },
 
+    // ENDRET: Tillater nå Research under combat (Pauser spillet)
     openResearch: () => {
-        if (state.gameState === 'PLAYING') { alert("COMBAT ACTIVE"); return; }
         state.previousState = state.gameState;
-        state.gameState = 'MENU'; 
+        state.gameState = 'MENU'; // Pauser spillet
         document.getElementById('research-overlay').classList.remove('hidden');
         game.renderResearchGrid();
     },
+    
     closeResearch: () => {
         document.getElementById('research-overlay').classList.add('hidden');
-        state.gameState = state.previousState;
+        state.gameState = state.previousState; // Fortsetter der vi slapp
     },
+    
     renderResearchGrid: () => {
         const grid = document.getElementById('research-grid');
         grid.innerHTML = "";
@@ -426,7 +428,7 @@ const game = {
         game.updateUI();
     },
 
-    // --- WAVE LOGIC (GJENINNATT!) ---
+    // --- WAVE LOGIC ---
     shuffle: (array) => {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -557,7 +559,7 @@ const game = {
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
-        // 1. Sjekk PLATTFORM (Tårn)
+        // 1. Sjekk PLATTFORM (Tårn) - Radius 50px
         for (let i = 0; i < state.platforms.length; i++) {
             const p = state.platforms[i];
             if (p.tower && p.tower.type === 'trap') continue;
@@ -848,4 +850,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #35 */
+/* Version: #36 */
