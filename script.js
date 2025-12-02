@@ -1,10 +1,10 @@
-/* Version: #37 */
+/* Version: #39 */
 /**
- * NEON DEFENSE: SAVE/LOAD UPDATE
- * Fixes: LocalStorage saving, Continue button, Auto-save on wave complete.
+ * NEON DEFENSE: SAVE FIX & LEVEL PROGRESSION
+ * Fixes: Tower loading order, Level transition logic.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V37 (PERSISTENCE) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V39 (SAVE FIX) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -28,6 +28,7 @@ const CONFIG = {
 
 // --- MAP DATA ---
 const LEVEL_MAPS = [
+    // Level 1
     {
         path: [{x:-50, y:150}, {x:1000, y:150}, {x:1000, y:350}, {x:200, y:350}, {x:200, y:550}, {x:1000, y:550}, {x:1000, y:700}, {x:50, y:700}],
         core: {x: 50, y: 700}, miner: {x: 1150, y: 100},
@@ -38,6 +39,7 @@ const LEVEL_MAPS = [
             {x:850, y:630}, {x:700, y:630}, {x:550, y:630}, {x:400, y:630}, {x:250, y:630}
         ]
     },
+    // Level 2
     {
         path: [{x:50, y:-50}, {x:50, y:650}, {x:1230, y:650}, {x:1230, y:150}, {x:300, y:150}, {x:300, y:400}, {x:640, y:400}],
         core: {x: 640, y: 400}, miner: {x: 1100, y: 700},
@@ -49,6 +51,7 @@ const LEVEL_MAPS = [
             {x:400, y:350}, {x:500, y:350}, {x:500, y:450}
         ]
     },
+    // Level 3
     {
         path: [{x:-50, y:100}, {x:300, y:100}, {x:300, y:700}, {x:600, y:700}, {x:600, y:100}, {x:900, y:100}, {x:900, y:700}, {x:1200, y:700}, {x:1200, y:400}, {x:1350, y:400}],
         core: {x: 1300, y: 400}, miner: {x: 100, y: 700},
@@ -114,7 +117,7 @@ const state = {
     mathTask: { active: false, type: null, target: null, remaining: 0, total: 0, answer: 0 }
 };
 
-// --- 4. ENGINE & INIT ---
+// --- 4. ENGINE ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -147,7 +150,7 @@ const game = {
 
     init: () => {
         if(!game.validateDOM()) return;
-        game.checkForSave(); // Sjekk om vi skal vise Continue-knappen
+        game.checkForSave();
         game.loadLevel(1);
         let ui = document.getElementById('ui-layer'); if(ui) ui.classList.add('hidden');
         let start = document.getElementById('start-screen'); if(start) start.classList.remove('hidden');
@@ -161,14 +164,16 @@ const game = {
         const toast = document.getElementById('save-toast');
         if(toast) {
             toast.classList.remove('hidden');
-            // Reset animation
             toast.style.animation = 'none';
-            toast.offsetHeight; /* trigger reflow */
+            toast.offsetHeight; 
             toast.style.animation = null; 
         }
     },
 
     saveProgress: () => {
+        // Vi lagrer kun tårn-data, ikke posisjon (posisjon styres av map)
+        const towerData = state.platforms.map(p => p.tower);
+        
         const data = {
             money: state.money,
             lives: state.lives,
@@ -178,17 +183,14 @@ const game = {
             score: state.score,
             minerLvl: state.minerLvl,
             unlockedTowers: state.unlockedTowers,
-            // Vi lagrer ikke selve tårnene på kartet, det blir for komplekst for nå. 
-            // Spilleren beholder penger og unlocks, men må bygge på nytt ved reload.
-            // Dette er vanlig i roguelites, men hvis du vil lagre tårn må vi serialisere platforms arrayet.
+            towers: towerData
         };
         localStorage.setItem('nd_save_v1', JSON.stringify(data));
         console.log("Game Saved");
     },
 
     checkForSave: () => {
-        const data = localStorage.getItem('nd_save_v1');
-        if (data) {
+        if (localStorage.getItem('nd_save_v1')) {
             const btn = document.getElementById('btn-continue');
             if(btn) btn.classList.remove('hidden');
         }
@@ -198,6 +200,8 @@ const game = {
         const json = localStorage.getItem('nd_save_v1');
         if (json) {
             const data = JSON.parse(json);
+            
+            // 1. Restore State
             state.money = data.money;
             state.lives = data.lives;
             state.level = data.level;
@@ -207,13 +211,23 @@ const game = {
             state.minerLvl = data.minerLvl;
             state.unlockedTowers = data.unlockedTowers || ['blaster'];
             
-            game.enterLobby(false); // False = ikke nytt spill
+            // 2. Load Map
+            game.enterLobby(false); 
+            
+            // 3. Restore Towers (VIKTIG: Gjøres ETTER enterLobby/loadLevel)
+            if(data.towers && Array.isArray(data.towers)) {
+                for(let i=0; i < state.platforms.length; i++) {
+                    if(data.towers[i]) {
+                        state.platforms[i].tower = data.towers[i];
+                    }
+                }
+            }
+            console.log("Save Loaded Successfully");
         }
     },
 
     enterLobby: (newGame) => {
         if (newGame) {
-            // Reset state
             state.money = CONFIG.STARTING_BITS;
             state.lives = CONFIG.STARTING_LIVES;
             state.level = 1;
@@ -222,21 +236,24 @@ const game = {
             state.score = 0;
             state.minerLvl = 1;
             state.unlockedTowers = ['blaster'];
-            localStorage.removeItem('nd_save_v1'); // Slett gammel save
+            localStorage.removeItem('nd_save_v1');
+            game.loadLevel(1);
+        } else {
+            // Hvis vi laster, må vi laste riktig brett
+            game.loadLevel(state.level);
         }
         
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('ui-layer').classList.remove('hidden');
-        
-        game.loadLevel(state.level);
         game.openConfig();
     },
 
     loadLevel: (lvlNum) => {
         state.level = lvlNum;
-        // state.waveInLevel nullstilles ikke her hvis vi loader save
         let mapIdx = (lvlNum - 1) % LEVEL_MAPS.length;
         state.currentMap = LEVEL_MAPS[mapIdx];
+        
+        // Reset board
         state.platforms = state.currentMap.platforms.map(p => ({ x: p.x, y: p.y, tower: null }));
         state.enemies = []; state.projectiles = []; state.particles = [];
         console.log(`Loading Level ${lvlNum}, Map ${mapIdx}`);
@@ -444,7 +461,6 @@ const game = {
     closeMath: () => {
         state.mathTask.active = false;
         document.getElementById('math-terminal').classList.add('hidden');
-        // Hvis vi avbryter i en bølge som ikke har startet, gå til Lobby
         if (state.gameState === 'PLAYING' && state.waveInLevel === 0) {
              state.gameState = state.previousState;
         }
@@ -491,6 +507,7 @@ const game = {
         }
         game.closeMath();
         state.gameState = state.previousState;
+        game.saveProgress(); // Auto-save after math
         game.updateUI();
     },
 
@@ -573,9 +590,7 @@ const game = {
         const bonus = state.waveTotal * 100;
         state.score += bonus;
         game.checkHighScore();
-        
-        // Auto-save
-        game.saveProgress();
+        game.saveProgress(); // Auto-save
         
         if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
             document.getElementById('next-level-num').innerText = state.level + 1;
@@ -595,11 +610,23 @@ const game = {
     },
     
     startNextLevel: () => {
+        // REFUND LOGIC
+        let refund = 0;
+        state.platforms.forEach(p => {
+            if(p.tower && p.tower.type !== 'trap') {
+                let baseCost = TOWERS[p.tower.type].cost || 50;
+                refund += baseCost + (p.tower.level * 20); 
+            }
+        });
+        state.money += refund;
+        
         game.loadLevel(state.level + 1);
+        game.saveProgress(); // Save clean slate for next level
+        
         document.getElementById('level-overlay').classList.add('hidden');
         document.getElementById('wave-overlay').classList.remove('hidden');
-        document.getElementById('wave-title').innerText = "NEW SECTOR REACHED";
-        document.getElementById('wave-bonus').innerText = "READY";
+        document.getElementById('wave-title').innerText = "SECTOR SECURED";
+        document.getElementById('wave-bonus').innerText = `REFUNDED ${refund} BITS`;
         game.updateUI();
     },
 
@@ -628,7 +655,6 @@ const game = {
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
-        // 1. Sjekk PLATTFORM (Tårn) - Radius 50px
         for (let i = 0; i < state.platforms.length; i++) {
             const p = state.platforms[i];
             if (p.tower && p.tower.type === 'trap') continue;
@@ -639,7 +665,6 @@ const game = {
             }
         }
 
-        // 2. Sjekk LØYPE (Miner)
         if (state.gameState === 'PLAYING') {
             if (game.isPointOnPath(x, y)) {
                 state.previousState = state.gameState;
@@ -873,7 +898,7 @@ const game = {
         }
     },
 
-    // --- DRAW HELPER (THIS WAS MISSING!) ---
+    // --- DRAW HELPER ---
     drawSprite: (ctx, img, x, y, w, h, rotation = 0) => {
         if (img && img.complete && img.naturalWidth > 0) {
             let scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
@@ -919,4 +944,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #37 */
+/* Version: #39 */
