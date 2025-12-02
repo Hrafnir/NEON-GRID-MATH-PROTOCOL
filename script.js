@@ -1,10 +1,10 @@
-/* Version: #36 */
+/* Version: #37 */
 /**
- * NEON DEFENSE: RESEARCH UPDATE
- * Fixes: Allow opening Research menu during combat (Pauses game).
+ * NEON DEFENSE: SAVE/LOAD UPDATE
+ * Fixes: LocalStorage saving, Continue button, Auto-save on wave complete.
  */
 
-console.log("--- SYSTEM STARTUP: NEON DEFENSE V36 (RESEARCH FIX) ---");
+console.log("--- SYSTEM STARTUP: NEON DEFENSE V37 (PERSISTENCE) ---");
 
 // --- 1. CONFIGURATION ---
 const CONFIG = {
@@ -28,7 +28,6 @@ const CONFIG = {
 
 // --- MAP DATA ---
 const LEVEL_MAPS = [
-    // Level 1
     {
         path: [{x:-50, y:150}, {x:1000, y:150}, {x:1000, y:350}, {x:200, y:350}, {x:200, y:550}, {x:1000, y:550}, {x:1000, y:700}, {x:50, y:700}],
         core: {x: 50, y: 700}, miner: {x: 1150, y: 100},
@@ -39,7 +38,6 @@ const LEVEL_MAPS = [
             {x:850, y:630}, {x:700, y:630}, {x:550, y:630}, {x:400, y:630}, {x:250, y:630}
         ]
     },
-    // Level 2
     {
         path: [{x:50, y:-50}, {x:50, y:650}, {x:1230, y:650}, {x:1230, y:150}, {x:300, y:150}, {x:300, y:400}, {x:640, y:400}],
         core: {x: 640, y: 400}, miner: {x: 1100, y: 700},
@@ -51,7 +49,6 @@ const LEVEL_MAPS = [
             {x:400, y:350}, {x:500, y:350}, {x:500, y:450}
         ]
     },
-    // Level 3
     {
         path: [{x:-50, y:100}, {x:300, y:100}, {x:300, y:700}, {x:600, y:700}, {x:600, y:100}, {x:900, y:100}, {x:900, y:700}, {x:1200, y:700}, {x:1200, y:400}, {x:1350, y:400}],
         core: {x: 1300, y: 400}, miner: {x: 100, y: 700},
@@ -150,6 +147,7 @@ const game = {
 
     init: () => {
         if(!game.validateDOM()) return;
+        game.checkForSave(); // Sjekk om vi skal vise Continue-knappen
         game.loadLevel(1);
         let ui = document.getElementById('ui-layer'); if(ui) ui.classList.add('hidden');
         let start = document.getElementById('start-screen'); if(start) start.classList.remove('hidden');
@@ -157,15 +155,86 @@ const game = {
         setInterval(game.minerTick, 1000); 
     },
 
-    enterLobby: () => {
+    // --- SAVE / LOAD SYSTEM ---
+    manualSave: () => {
+        game.saveProgress();
+        const toast = document.getElementById('save-toast');
+        if(toast) {
+            toast.classList.remove('hidden');
+            // Reset animation
+            toast.style.animation = 'none';
+            toast.offsetHeight; /* trigger reflow */
+            toast.style.animation = null; 
+        }
+    },
+
+    saveProgress: () => {
+        const data = {
+            money: state.money,
+            lives: state.lives,
+            level: state.level,
+            waveTotal: state.waveTotal,
+            waveInLevel: state.waveInLevel,
+            score: state.score,
+            minerLvl: state.minerLvl,
+            unlockedTowers: state.unlockedTowers,
+            // Vi lagrer ikke selve tårnene på kartet, det blir for komplekst for nå. 
+            // Spilleren beholder penger og unlocks, men må bygge på nytt ved reload.
+            // Dette er vanlig i roguelites, men hvis du vil lagre tårn må vi serialisere platforms arrayet.
+        };
+        localStorage.setItem('nd_save_v1', JSON.stringify(data));
+        console.log("Game Saved");
+    },
+
+    checkForSave: () => {
+        const data = localStorage.getItem('nd_save_v1');
+        if (data) {
+            const btn = document.getElementById('btn-continue');
+            if(btn) btn.classList.remove('hidden');
+        }
+    },
+
+    loadGame: () => {
+        const json = localStorage.getItem('nd_save_v1');
+        if (json) {
+            const data = JSON.parse(json);
+            state.money = data.money;
+            state.lives = data.lives;
+            state.level = data.level;
+            state.waveTotal = data.waveTotal;
+            state.waveInLevel = data.waveInLevel;
+            state.score = data.score;
+            state.minerLvl = data.minerLvl;
+            state.unlockedTowers = data.unlockedTowers || ['blaster'];
+            
+            game.enterLobby(false); // False = ikke nytt spill
+        }
+    },
+
+    enterLobby: (newGame) => {
+        if (newGame) {
+            // Reset state
+            state.money = CONFIG.STARTING_BITS;
+            state.lives = CONFIG.STARTING_LIVES;
+            state.level = 1;
+            state.waveTotal = 0;
+            state.waveInLevel = 0;
+            state.score = 0;
+            state.minerLvl = 1;
+            state.unlockedTowers = ['blaster'];
+            localStorage.removeItem('nd_save_v1'); // Slett gammel save
+        }
+        
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('ui-layer').classList.remove('hidden');
+        
+        game.loadLevel(state.level);
         game.openConfig();
     },
 
     loadLevel: (lvlNum) => {
         state.level = lvlNum;
-        state.waveInLevel = 0;
+        // state.waveInLevel nullstilles ikke her hvis vi loader save
         let mapIdx = (lvlNum - 1) % LEVEL_MAPS.length;
         state.currentMap = LEVEL_MAPS[mapIdx];
         state.platforms = state.currentMap.platforms.map(p => ({ x: p.x, y: p.y, tower: null }));
@@ -190,19 +259,16 @@ const game = {
         game.updateUI();
     },
 
-    // ENDRET: Tillater nå Research under combat (Pauser spillet)
     openResearch: () => {
         state.previousState = state.gameState;
-        state.gameState = 'MENU'; // Pauser spillet
+        state.gameState = 'MENU'; 
         document.getElementById('research-overlay').classList.remove('hidden');
         game.renderResearchGrid();
     },
-    
     closeResearch: () => {
         document.getElementById('research-overlay').classList.add('hidden');
-        state.gameState = state.previousState; // Fortsetter der vi slapp
+        state.gameState = state.previousState;
     },
-    
     renderResearchGrid: () => {
         const grid = document.getElementById('research-grid');
         grid.innerHTML = "";
@@ -507,6 +573,9 @@ const game = {
         const bonus = state.waveTotal * 100;
         state.score += bonus;
         game.checkHighScore();
+        
+        // Auto-save
+        game.saveProgress();
         
         if (state.waveInLevel >= CONFIG.WAVES_PER_LEVEL) {
             document.getElementById('next-level-num').innerText = state.level + 1;
@@ -850,4 +919,4 @@ document.getElementById('game-canvas').addEventListener('mousedown', game.handle
 document.getElementById('math-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') game.checkAnswer(); });
 
 window.onload = game.init;
-/* Version: #36 */
+/* Version: #37 */
