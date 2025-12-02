@@ -1,10 +1,10 @@
-<!-- Version: #32 -->
+<!-- Version: #37 -->
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DEFENSE: TACTICAL</title>
+    <title>NEON DEFENSE: PERSISTENCE</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="icon" href="data:,">
@@ -21,7 +21,10 @@
             <h1 class="main-title">NEON DEFENSE</h1>
             <p class="subtitle">TACTICAL MATH PROTOCOL</p>
             <br><br>
-            <button class="btn-large" onclick="game.enterLobby()">INITIALIZE SYSTEM</button>
+            <!-- Continue-knappen er skjult som standard (JS viser den hvis save finnes) -->
+            <button id="btn-continue" class="btn-large hidden" onclick="game.loadGame()">CONTINUE MISSION</button>
+            <br><br>
+            <button class="btn-large" onclick="game.enterLobby(true)">NEW GAME</button>
         </div>
 
         <!-- UI HUD -->
@@ -29,6 +32,8 @@
             <div class="top-bar">
                 <button id="btn-research" onclick="game.openResearch()">🧪 RESEARCH</button>
                 <button id="btn-config" onclick="game.openConfig()">⚙ CONFIG</button>
+                <!-- NY LAGRE KNAPP -->
+                <button id="btn-save" onclick="game.manualSave()">💾 SAVE</button>
                 
                 <div class="stat-box">BITS: <span id="ui-bits" style="color:#ffee00">0</span></div>
                 <div class="stat-box">LIVES: <span id="ui-lives" style="color:#ff0055">20</span></div>
@@ -36,7 +41,6 @@
                 <div class="stat-box">WAVE: <span id="ui-wave">1</span>/10</div>
             </div>
 
-            <!-- Miner (Passiv inntekt av Bits) -->
             <div id="miner-panel" onclick="game.openMinerUpgrade()">
                 <div class="panel-title">CRYPTO MINER</div>
                 <div class="panel-stat">Lvl: <span id="miner-lvl">1</span></div>
@@ -45,7 +49,10 @@
             </div>
         </div>
 
-        <!-- TURRET CONTROL MENU (Pauser spillet) -->
+        <!-- SAVE NOTIFICATION (Toast) -->
+        <div id="save-toast" class="hidden">GAME SAVED</div>
+
+        <!-- TURRET CONTROL MENU -->
         <div id="turret-menu" class="hidden">
             <div class="menu-header">PLATFORM CONTROL</div>
             <div id="turret-stats"></div>
@@ -53,7 +60,7 @@
             <button class="btn-cancel" onclick="game.closeTurretMenu()">CLOSE</button>
         </div>
 
-        <!-- RESEARCH OVERLAY (Bruke Bits) -->
+        <!-- RESEARCH OVERLAY -->
         <div id="research-overlay" class="overlay-screen hidden">
             <h1 style="color:var(--neon-blue)">BLUEPRINT RESEARCH</h1>
             <p>BRUK BITS TIL Å LÅSE OPP NYE TÅRNTYPER</p>
@@ -94,6 +101,8 @@
             <button class="btn-large" onclick="game.startNextWave()">START NEXT WAVE</button>
             <br><br>
             <button class="btn-small" onclick="game.openConfig()">CHANGE CONFIG</button>
+            <br>
+            <button class="btn-small" onclick="game.manualSave()">SAVE & EXIT</button>
         </div>
         
         <!-- LEVEL COMPLETE OVERLAY -->
@@ -114,4 +123,4 @@
     <script src="script.js"></script>
 </body>
 </html>
-<!-- Version: #32 -->
+<!-- Version: #37 -->
