@@ -1,5 +1,5 @@
-/* Version: #33 */
-/* --- CSS: NEON DEFENSE FINAL FIX --- */
+/* Version: #37 */
+/* --- CSS: NEON DEFENSE SAVING --- */
 
 :root {
     --bg: #050510;
@@ -34,35 +34,22 @@ body {
 #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .hidden { display: none !important; }
 
-/* --- START SCREEN --- */
-#start-screen {
-    background-image: url('assets/cover.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    z-index: 300; 
-}
-
-.main-title {
-    font-size: 6rem; color: #fff; text-shadow: 0 0 20px var(--neon-blue), 0 0 40px var(--neon-pink);
-    margin-bottom: 0; letter-spacing: 5px;
-}
-.subtitle {
-    font-size: 1.5rem; color: var(--neon-green); margin-bottom: 50px; letter-spacing: 3px;
-    background: rgba(0,0,0,0.6); padding: 5px 20px;
-}
-
 /* --- UI ELEMENTS --- */
 .top-bar {
     display: flex; align-items: center; padding: 15px 25px;
     background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent); pointer-events: auto;
 }
-#btn-config, #btn-research {
+#btn-config, #btn-research, #btn-save {
     background: rgba(0, 0, 0, 0.5); border: 1px solid var(--neon-blue); color: var(--neon-blue);
     padding: 8px 20px; cursor: pointer; font-family: var(--font-main); margin-right: 20px;
     font-size: 1rem; transition: 0.2s;
 }
-#btn-config:hover, #btn-research:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 15px var(--neon-blue); }
+#btn-config:hover, #btn-research:hover, #btn-save:hover { 
+    background: var(--neon-blue); color: black; box-shadow: 0 0 15px var(--neon-blue); 
+}
+/* Egen farge for Save */
+#btn-save { border-color: var(--neon-green); color: var(--neon-green); margin-left: auto; }
+#btn-save:hover { background: var(--neon-green); color: black; box-shadow: 0 0 15px var(--neon-green); }
 
 .stat-box { font-size: 1.2rem; font-weight: bold; text-shadow: 0 0 5px currentColor; min-width: 120px; margin-right: 20px; }
 .stat-box.small { font-size: 1rem; color: #888; }
@@ -77,21 +64,25 @@ body {
 .panel-stat { font-size: 1.1rem; margin: 5px 0; }
 .upgrade-hint { font-size: 0.7rem; color: var(--neon-green); margin-top: 10px; animation: blink 2s infinite; }
 
-/* --- TURRET CONTROL MENU (Popup) --- */
+/* --- SAVE TOAST --- */
+#save-toast {
+    position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 255, 0, 0.2); border: 1px solid var(--neon-green); color: var(--neon-green);
+    padding: 10px 30px; font-size: 1.2rem; border-radius: 5px;
+    animation: fadeOut 2s forwards; pointer-events: none;
+}
+@keyframes fadeOut { 0% { opacity: 1; top: 80px; } 80% { opacity: 1; top: 80px; } 100% { opacity: 0; top: 60px; } }
+
+/* --- TURRET MENU --- */
 #turret-menu {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 500px; background: rgba(0, 0, 0, 0.95);
     border: 2px solid var(--neon-blue); box-shadow: 0 0 50px var(--neon-blue);
     padding: 30px; text-align: center; z-index: 200; pointer-events: auto;
 }
-
 .menu-header { font-size: 1.5rem; color: var(--neon-blue); margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
 #turret-stats { font-size: 1rem; margin-bottom: 20px; color: #ddd; }
-
-.menu-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;
-}
-
+.menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
 .menu-btn {
     background: #111; border: 1px solid #444; padding: 15px; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -99,14 +90,11 @@ body {
 }
 .menu-btn:hover { background: #222; border-color: white; }
 .menu-btn.locked { opacity: 0.4; cursor: not-allowed; border-color: #333; }
-
 .cost-math { color: var(--neon-green); font-weight: bold; font-size: 0.9rem; margin-top: 5px; }
 .cost-bits { color: var(--neon-yellow); font-weight: bold; font-size: 0.9rem; margin-top: 5px; }
 
-/* --- RESEARCH OVERLAY --- */
-#research-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 800px; margin: 0 auto;
-}
+/* --- RESEARCH --- */
+#research-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 800px; margin: 0 auto; }
 
 /* --- MATH TERMINAL --- */
 #math-terminal {
@@ -127,7 +115,7 @@ body {
     color: var(--neon-green); font-size: 4rem; text-align: center; width: 250px; outline: none; font-family: var(--font-main);
 }
 
-/* --- OVERLAYS & CONFIG --- */
+/* --- OVERLAYS --- */
 .overlay-screen {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -136,9 +124,13 @@ body {
 .overlay-screen h1 { font-size: 4rem; margin-bottom: 15px; text-shadow: 0 0 25px white; }
 .overlay-screen p { font-size: 1.8rem; margin-bottom: 40px; }
 
-#table-selector { 
-    display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin: 30px 0; max-width: 700px; width: 100%;
+#start-screen {
+    background-image: url('assets/cover.png'); background-size: cover; background-position: center;
 }
+.main-title { font-size: 6rem; color: #fff; text-shadow: 0 0 20px var(--neon-blue); margin: 0; }
+.subtitle { font-size: 1.5rem; color: var(--neon-green); background: rgba(0,0,0,0.7); padding: 5px 20px; }
+
+#table-selector { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin: 30px 0; max-width: 700px; width: 100%; }
 .table-btn {
     width: 70px; height: 70px; background: #0a0a0a; border: 2px solid #333; color: #555;
     font-size: 1.8rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; font-family: var(--font-main);
@@ -165,4 +157,4 @@ body {
 
 @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
 .blink { animation: blink 1s infinite; }
-/* Version: #33 */
+/* Version: #37 */
